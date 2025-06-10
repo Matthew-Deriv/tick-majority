@@ -376,6 +376,12 @@ function addContractVisualization() {
     // Get current chart layout
     const layout = chart.layout || {};
     
+    // Clear previous contract visualizations
+    Plotly.relayout(chart, {
+        shapes: [],
+        annotations: []
+    });
+    
     // Create shapes and annotations arrays
     const shapes = [];
     const annotations = [];
@@ -486,6 +492,9 @@ function updateContractVisualization(upTickCount) {
     const layout = chart.layout || {};
     const shapes = [...(layout.shapes || [])];
     const annotations = [...(layout.annotations || [])];
+    
+    // Calculate the contract start index
+    const contractStartIndex = tickHistory.length - contractTicks.length;
     
     // Find and update the contract progress shape
     const progressShapeIndex = shapes.findIndex(shape => 
@@ -630,6 +639,15 @@ function addTickMarkers() {
 
 // Complete the contract
 function completeContract(won, upTickCount) {
+    // Store contract data before resetting
+    const contractData = {
+        startIndex: tickHistory.length - contractTicks.length,
+        endIndex: tickHistory.length,
+        duration: contractDuration,
+        minUpticks: contractMinUpticks,
+        actualUpticks: upTickCount
+    };
+    
     // Reset contract active flag
     contractActive = false;
     
@@ -651,7 +669,7 @@ function completeContract(won, upTickCount) {
     resultNotificationElement.classList.remove('hidden');
     
     // Add final contract visualization
-    finalizeContractVisualization(won);
+    finalizeContractVisualization(won, contractData);
     
     // Hide active contract panel
     setTimeout(() => {
@@ -665,7 +683,7 @@ function completeContract(won, upTickCount) {
 }
 
 // Finalize contract visualization
-function finalizeContractVisualization(won) {
+function finalizeContractVisualization(won, contractData) {
     // Get current chart layout
     const layout = chart.layout || {};
     const shapes = [...(layout.shapes || [])];
@@ -674,9 +692,9 @@ function finalizeContractVisualization(won) {
     // Add result highlight
     shapes.push({
         type: 'rect',
-        x0: tickHistory.length - contractTicks.length,
+        x0: contractData.startIndex,
         y0: 0,
-        x1: tickHistory.length,
+        x1: contractData.endIndex,
         y1: 1,
         yref: 'paper',
         fillcolor: won ? 'rgba(46, 204, 113, 0.3)' : 'rgba(231, 76, 60, 0.3)',
@@ -688,7 +706,7 @@ function finalizeContractVisualization(won) {
     
     // Add result annotation
     annotations.push({
-        x: tickHistory.length - (contractTicks.length / 2),
+        x: contractData.startIndex + (contractData.duration / 2),
         y: lastPrice,
         text: won ? 'Contract Won!' : 'Contract Lost',
         showarrow: true,
