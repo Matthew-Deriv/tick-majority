@@ -433,14 +433,29 @@ function addContractVisualization() {
 
 // Update contract with new tick
 function updateContract(tick) {
+    // Determine if it's an up tick compared to previous tick
+    let isUpTick;
+    if (contractTicks.length === 0) {
+        // First tick in contract - compare to contract start price
+        isUpTick = tick.price > contractStartPrice;
+        console.log(`First contract tick: ${tick.price}, Start price: ${contractStartPrice}, Is up tick: ${isUpTick}`);
+    } else {
+        // Compare to previous tick
+        const prevTick = contractTicks[contractTicks.length - 1];
+        isUpTick = tick.price > prevTick.price;
+        console.log(`Contract tick: ${tick.price}, Previous price: ${prevTick.price}, Is up tick: ${isUpTick}`);
+    }
+    
     // Add to contract ticks
     contractTicks.push({
         price: tick.price,
-        isUp: tick.price > contractStartPrice
+        isUp: isUpTick,
+        isAboveStart: tick.price > contractStartPrice // Also track if it's above start price
     });
     
     // Count up ticks
     const upTickCount = contractTicks.filter(t => t.isUp).length;
+    console.log(`Contract progress: ${upTickCount}/${contractTicks.length} up-ticks, need ${contractMinUpticks}/${contractDuration}`);
     
     // Update contract UI
     contractProgressElement.textContent = `${contractTicks.length}/${contractDuration}`;
@@ -533,7 +548,7 @@ function updateContractVisualization(upTickCount) {
 
 // Add markers for up and down ticks
 function addTickMarkers() {
-    // Create arrays for up and down tick positions
+    // Create arrays for different tick types
     const upTickIndices = [];
     const downTickIndices = [];
     const upTickPrices = [];
@@ -551,7 +566,9 @@ function addTickMarkers() {
         }
     });
     
-    // Create data for up ticks
+    console.log(`Adding markers: ${upTickIndices.length} up ticks, ${downTickIndices.length} down ticks`);
+    
+    // Create data for up ticks (compared to previous tick)
     const upTickData = {
         x: upTickIndices,
         y: upTickPrices,
@@ -562,13 +579,14 @@ function addTickMarkers() {
             line: {
                 color: 'white',
                 width: 2
-            }
+            },
+            symbol: 'circle'
         },
         showlegend: false,
         name: 'Up Ticks'
     };
     
-    // Create data for down ticks
+    // Create data for down ticks (compared to previous tick)
     const downTickData = {
         x: downTickIndices,
         y: downTickPrices,
@@ -579,7 +597,8 @@ function addTickMarkers() {
             line: {
                 color: 'white',
                 width: 2
-            }
+            },
+            symbol: 'circle'
         },
         showlegend: false,
         name: 'Down Ticks'

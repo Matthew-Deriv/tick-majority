@@ -321,11 +321,30 @@ header p {
     color: var(--secondary-color);
 }
 
+.contract-info {
+    margin: 10px 0;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-left: 4px solid var(--primary-color);
+    border-radius: 0 var(--border-radius) var(--border-radius) 0;
+    font-size: 14px;
+}
+
+.contract-info p {
+    margin: 0;
+    color: #666;
+}
+
+.contract-info strong {
+    color: var(--secondary-color);
+}
+
 .progress-bar-container {
     height: 10px;
     background-color: #eee;
     border-radius: 5px;
     overflow: hidden;
+    margin-top: 10px;
 }
 
 .progress-bar {
