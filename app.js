@@ -317,6 +317,9 @@ function updateChart() {
             'yaxis.range': [minPrice - padding, maxPrice + padding]
         });
     }
+    
+    // Clean up old contract visualizations that are no longer visible
+    cleanupOldContractVisualizations();
 }
 
 // Calculate binomial coefficient (n choose k)
@@ -389,7 +392,7 @@ function placeTrade() {
     
     // Store contract start price and tick number
     contractStartPrice = lastPrice;
-    contractStartTickNumber = totalTickCount + 1; // Next tick will be the first contract tick
+    contractStartTickNumber = totalTickCount; // Start with current tick
     
     // Reset contract ticks
     contractTicks = [];
@@ -482,6 +485,12 @@ function addContractVisualization() {
 
 // Update contract with new tick
 function updateContract(tick) {
+    // Skip the first tick that comes at the same time as contract placement
+    if (tick.tickNumber === contractStartTickNumber) {
+        console.log(`Skipping tick ${tick.tickNumber} as it's the contract start tick`);
+        return;
+    }
+    
     // Determine if it's an up tick compared to previous tick
     let isUpTick;
     if (contractTicks.length === 0) {
@@ -609,7 +618,8 @@ function addTickMarkers() {
     
     // Populate the arrays using actual tick numbers
     contractTicks.forEach((tick, index) => {
-        const tickNumber = contractStartTickNumber + index;
+        // Since we skip the first tick, we need to add 1 to the index
+        const tickNumber = contractStartTickNumber + index + 1;
         if (tick.isUp) {
             upTickIndices.push(tickNumber);
             upTickPrices.push(tick.price);
@@ -773,6 +783,65 @@ function finalizeContractVisualization(won, contractData) {
         shapes: shapes,
         annotations: annotations
     });
+}
+
+// Clean up old contract visualizations that are no longer visible
+function cleanupOldContractVisualizations() {
+    // Get current chart layout
+    const layout = chart.layout || {};
+    if (!layout.shapes && !layout.annotations) return;
+    
+    // Get the range of visible tick numbers
+    const visibleTickNumbers = tickHistory.map(tick => tick.tickNumber);
+    if (visibleTickNumbers.length === 0) return;
+    
+    const minVisibleTick = Math.min(...visibleTickNumbers);
+    const maxVisibleTick = Math.max(...visibleTickNumbers);
+    
+    // Filter shapes to keep only those that are visible
+    const shapes = (layout.shapes || []).filter(shape => {
+        // Keep shapes that don't have x coordinates (shouldn't happen but be safe)
+        if (!shape.x0 && !shape.x1) return true;
+        
+        // Keep shapes that overlap with the visible range
+        const shapeStart = Math.min(shape.x0 || 0, shape.x1 || 0);
+        const shapeEnd = Math.max(shape.x0 || 0, shape.x1 || 0);
+        
+        // Keep if any part of the shape is visible
+        return shapeEnd >= minVisibleTick && shapeStart <= maxVisibleTick;
+    });
+    
+    // Filter annotations to keep only those that are visible
+    const annotations = (layout.annotations || []).filter(annotation => {
+        // Keep annotations that don't have x coordinate
+        if (!annotation.x) return true;
+        
+        // Keep annotations that are within the visible range
+        return annotation.x >= minVisibleTick && annotation.x <= maxVisibleTick;
+    });
+    
+    // Update layout if anything was removed
+    if (shapes.length !== (layout.shapes || []).length || 
+        annotations.length !== (layout.annotations || []).length) {
+        Plotly.relayout(chart, {
+            shapes: shapes,
+            annotations: annotations
+        });
+    }
+    
+    // Also clean up tick marker traces if contract is not active
+    if (!contractActive) {
+        const upTickTraceIndex = chart.data.findIndex(trace => trace.name === 'Up Ticks');
+        const downTickTraceIndex = chart.data.findIndex(trace => trace.name === 'Down Ticks');
+        
+        const tracesToDelete = [];
+        if (upTickTraceIndex >= 0) tracesToDelete.push(upTickTraceIndex);
+        if (downTickTraceIndex >= 0) tracesToDelete.push(downTickTraceIndex);
+        
+        if (tracesToDelete.length > 0) {
+            Plotly.deleteTraces(chart, tracesToDelete);
+        }
+    }
 }
 
 // Reset the entire application to initial state
