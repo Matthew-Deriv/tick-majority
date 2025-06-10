@@ -162,6 +162,7 @@ function setupEventListeners() {
     // Close notification button
     closeNotificationButton.addEventListener('click', () => {
         resultNotificationElement.classList.add('hidden');
+        resetApplication();
     });
 }
 
@@ -764,4 +765,64 @@ function finalizeContractVisualization(won, contractData) {
         shapes: shapes,
         annotations: annotations
     });
+}
+
+// Reset the entire application to initial state
+function resetApplication() {
+    // Clear the tick interval
+    if (tickInterval) {
+        clearInterval(tickInterval);
+    }
+    
+    // Reset global variables
+    tickHistory = [];
+    lastPrice = 10000;
+    contractActive = false;
+    contractStartPrice = null;
+    contractTicks = [];
+    contractDuration = 0;
+    contractMinTicks = 0;
+    isUpDirection = true;
+    
+    // Reset UI elements
+    currentPriceElement.textContent = '10000.0';
+    priceDirectionElement.textContent = '→';
+    priceDirectionElement.className = 'neutral';
+    tickHistoryElement.textContent = '-';
+    
+    // Reset form values to defaults
+    durationSlider.value = '7';
+    durationValueElement.textContent = '7 ticks';
+    minUpticksSlider.value = '3';
+    minUpticksSlider.max = '7';
+    minUpticksValueElement.textContent = '3 ticks';
+    stakeInput.value = '10';
+    houseEdgeInput.value = '0.05';
+    
+    // Reset direction toggle
+    upDirectionBtn.classList.add('active');
+    downDirectionBtn.classList.remove('active');
+    minTicksLabel.textContent = 'Minimum Up-ticks:';
+    
+    // Reset contract UI
+    activeContractElement.classList.add('hidden');
+    contractProgressElement.textContent = '0/0';
+    upTickCountElement.textContent = '0';
+    upTickTargetElement.textContent = '0';
+    progressBarElement.style.width = '0%';
+    
+    // Reset place trade button
+    placeTradeButton.disabled = true;
+    
+    // Clear and reinitialize the chart
+    Plotly.purge(chart);
+    initChart();
+    
+    // Update calculations
+    updateCalculations();
+    
+    // Restart tick generator
+    startTickGenerator();
+    
+    console.log('Application reset to initial state');
 }
