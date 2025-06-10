@@ -211,6 +211,40 @@ header p {
     margin-left: 10px;
 }
 
+/* Direction Toggle */
+.direction-toggle {
+    display: flex;
+    margin-bottom: 10px;
+}
+
+.direction-btn {
+    flex: 1;
+    padding: 8px 12px;
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s;
+}
+
+.direction-btn:first-child {
+    border-radius: var(--border-radius) 0 0 var(--border-radius);
+}
+
+.direction-btn:last-child {
+    border-radius: 0 var(--border-radius) var(--border-radius) 0;
+}
+
+.direction-btn.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.direction-btn:hover:not(.active) {
+    background-color: #e9ecef;
+}
+
 .input-field {
     width: 100%;
     padding: 8px 12px;

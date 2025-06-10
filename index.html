@@ -45,7 +45,15 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="minUpticks">Minimum Up-ticks:</label>
+                    <label for="tickDirection">Tick Direction:</label>
+                    <div class="direction-toggle">
+                        <button id="upDirection" class="direction-btn active">Up</button>
+                        <button id="downDirection" class="direction-btn">Down</button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label id="minTicksLabel" for="minUpticks">Minimum Up-ticks:</label>
                     <div class="slider-container">
                         <input type="range" id="minUpticks" min="1" max="7" value="3" class="slider">
                         <span id="minUpticksValue">3 ticks</span>
@@ -117,7 +125,7 @@
                     </div>
                 </div>
                 <div class="contract-info">
-                    <p><strong>Note:</strong> Up-ticks are counted when a tick's price is higher than the <em>previous</em> tick's price.</p>
+                    <p><strong>Note:</strong> Ticks are counted based on direction. An up-tick is when a tick's price is higher than the <em>previous</em> tick's price. A down-tick is when it's lower.</p>
                 </div>
                 <div class="progress-bar-container">
                     <div id="progressBar" class="progress-bar"></div>

@@ -7,7 +7,8 @@ let contractActive = false;
 let contractStartPrice = null;
 let contractTicks = [];
 let contractDuration = 0;
-let contractMinUpticks = 0;
+let contractMinTicks = 0;
+let isUpDirection = true; // Default to up direction
 
 // DOM Elements
 const currentPriceElement = document.getElementById('currentPrice');
@@ -17,6 +18,9 @@ const durationSlider = document.getElementById('duration');
 const durationValueElement = document.getElementById('durationValue');
 const minUpticksSlider = document.getElementById('minUpticks');
 const minUpticksValueElement = document.getElementById('minUpticksValue');
+const minTicksLabel = document.getElementById('minTicksLabel');
+const upDirectionBtn = document.getElementById('upDirection');
+const downDirectionBtn = document.getElementById('downDirection');
 const stakeInput = document.getElementById('stake');
 const houseEdgeInput = document.getElementById('houseEdge');
 const placeTradeButton = document.getElementById('placeTradeBtn');
@@ -101,6 +105,27 @@ function initChart() {
 
 // Set up event listeners
 function setupEventListeners() {
+    // Direction toggle buttons
+    upDirectionBtn.addEventListener('click', () => {
+        if (!isUpDirection) {
+            isUpDirection = true;
+            upDirectionBtn.classList.add('active');
+            downDirectionBtn.classList.remove('active');
+            minTicksLabel.textContent = 'Minimum Up-ticks:';
+            updateCalculations();
+        }
+    });
+    
+    downDirectionBtn.addEventListener('click', () => {
+        if (isUpDirection) {
+            isUpDirection = false;
+            downDirectionBtn.classList.add('active');
+            upDirectionBtn.classList.remove('active');
+            minTicksLabel.textContent = 'Minimum Down-ticks:';
+            updateCalculations();
+        }
+    });
+    
     // Duration slider
     durationSlider.addEventListener('input', () => {
         const duration = parseInt(durationSlider.value);
@@ -314,12 +339,15 @@ function binomialProbability(n, k, p) {
 function updateCalculations() {
     // Get form values
     const duration = parseInt(durationSlider.value);
-    const minUpticks = parseInt(minUpticksSlider.value);
+    const minTicks = parseInt(minUpticksSlider.value);
     const stake = parseFloat(stakeInput.value) || 0;
     const houseEdge = parseFloat(houseEdgeInput.value) || 0;
     
+    // Store the min ticks value for contract
+    contractMinTicks = minTicks;
+    
     // Calculate fair price (binomial probability)
-    const fairPrice = binomialProbability(duration, minUpticks, 0.5);
+    const fairPrice = binomialProbability(duration, minTicks, 0.5);
     
     // Total price per contract (additive house edge)
     const totalPrice = fairPrice + houseEdge;
@@ -337,15 +365,16 @@ function updateCalculations() {
     contractsElement.textContent = contracts.toFixed(2);
     potentialPayoutElement.textContent = `$${potentialPayout.toFixed(2)}`;
     
-    // Update summary
-    tradeSummaryElement.textContent = `For a $${stake.toFixed(2)} stake, if there are at least ${minUpticks} up-ticks in the next ${duration} ticks, you win $${potentialPayout.toFixed(2)}.`;
+    // Update summary based on direction
+    const directionText = isUpDirection ? 'up-ticks' : 'down-ticks';
+    tradeSummaryElement.textContent = `For a $${stake.toFixed(2)} stake, if there are at least ${minTicks} ${directionText} in the next ${duration} ticks, you win $${potentialPayout.toFixed(2)}.`;
 }
 
 // Place a trade
 function placeTrade() {
     // Get form values
     contractDuration = parseInt(durationSlider.value);
-    contractMinUpticks = parseInt(minUpticksSlider.value);
+    contractMinTicks = parseInt(minUpticksSlider.value);
     
     // Set contract as active
     contractActive = true;
@@ -362,13 +391,15 @@ function placeTrade() {
     // Show active contract panel
     activeContractElement.classList.remove('hidden');
     
-    // Update contract UI
-    upTickTargetElement.textContent = contractMinUpticks;
+    // Update contract UI based on direction
+    upTickCountElement.previousElementSibling.textContent = isUpDirection ? 'Up-ticks:' : 'Down-ticks:';
+    upTickTargetElement.textContent = contractMinTicks;
     
     // Add contract visualization to chart
     addContractVisualization();
     
-    console.log(`Contract started: ${contractDuration} ticks, min ${contractMinUpticks} up-ticks, start price: ${contractStartPrice}`);
+    const directionText = isUpDirection ? 'up' : 'down';
+    console.log(`Contract started: ${contractDuration} ticks, min ${contractMinTicks} ${directionText}-ticks, start price: ${contractStartPrice}`);
 }
 
 // Add contract visualization to chart
@@ -417,10 +448,11 @@ function addContractVisualization() {
     });
     
     // Add a label for the contract
+    const directionText = isUpDirection ? 'up' : 'down';
     annotations.push({
         x: tickHistory.length + (contractDuration / 2),
         y: contractStartPrice,
-        text: `Contract: ${contractMinUpticks}/${contractDuration} up-ticks`,
+        text: `Contract: ${contractMinTicks}/${contractDuration} ${directionText}-ticks`,
         showarrow: false,
         bgcolor: 'rgba(243, 156, 18, 0.8)',
         bordercolor: 'rgba(243, 156, 18, 0.8)',
@@ -461,28 +493,28 @@ function updateContract(tick) {
         isAboveStart: tick.price > contractStartPrice // Also track if it's above start price
     });
     
-    // Count up ticks
-    const upTickCount = contractTicks.filter(t => t.isUp).length;
-    console.log(`Contract progress: ${upTickCount}/${contractTicks.length} up-ticks, need ${contractMinUpticks}/${contractDuration}`);
+    // Count ticks based on direction
+    const targetTickCount = contractTicks.filter(t => isUpDirection ? t.isUp : !t.isUp).length;
+    console.log(`Contract progress: ${targetTickCount}/${contractTicks.length} ${isUpDirection ? 'up' : 'down'}-ticks, need ${contractMinTicks}/${contractDuration}`);
     
     // Update contract UI
     contractProgressElement.textContent = `${contractTicks.length}/${contractDuration}`;
-    upTickCountElement.textContent = upTickCount;
+    upTickCountElement.textContent = targetTickCount;
     
     // Update progress bar
     const progressPercentage = (contractTicks.length / contractDuration) * 100;
     progressBarElement.style.width = `${progressPercentage}%`;
     
     // Update contract visualization
-    updateContractVisualization(upTickCount);
+    updateContractVisualization(targetTickCount);
     
     // Check if contract is complete
     if (contractTicks.length >= contractDuration) {
         // Determine outcome
-        const won = upTickCount >= contractMinUpticks;
+        const won = targetTickCount >= contractMinTicks;
         
         // Complete the contract
-        completeContract(won, upTickCount);
+        completeContract(won, targetTickCount);
     }
 }
 
@@ -521,20 +553,21 @@ function updateContractVisualization(upTickCount) {
     }
     
     // Find and update the progress annotation
+    const directionText = isUpDirection ? 'up' : 'down';
     const progressAnnotationIndex = annotations.findIndex(ann => 
-        ann.text && ann.text.includes('up-ticks so far'));
+        ann.text && (ann.text.includes('up-ticks so far') || ann.text.includes('down-ticks so far')));
     
     if (progressAnnotationIndex >= 0) {
         // Update existing annotation
         annotations[progressAnnotationIndex].x = tickHistory.length;
         annotations[progressAnnotationIndex].y = lastPrice;
-        annotations[progressAnnotationIndex].text = `${upTickCount} up-ticks so far`;
+        annotations[progressAnnotationIndex].text = `${upTickCount} ${directionText}-ticks so far`;
     } else {
         // Add new progress annotation
         annotations.push({
             x: tickHistory.length,
             y: lastPrice,
-            text: `${upTickCount} up-ticks so far`,
+            text: `${upTickCount} ${directionText}-ticks so far`,
             showarrow: false,
             bgcolor: 'rgba(52, 152, 219, 0.8)',
             bordercolor: 'rgba(52, 152, 219, 0.8)',
@@ -638,14 +671,14 @@ function addTickMarkers() {
 }
 
 // Complete the contract
-function completeContract(won, upTickCount) {
+function completeContract(won, targetTickCount) {
     // Store contract data before resetting
     const contractData = {
         startIndex: tickHistory.length - contractTicks.length,
         endIndex: tickHistory.length,
         duration: contractDuration,
-        minUpticks: contractMinUpticks,
-        actualUpticks: upTickCount
+        minTicks: contractMinTicks,
+        actualTicks: targetTickCount
     };
     
     // Reset contract active flag
@@ -655,10 +688,11 @@ function completeContract(won, upTickCount) {
     const payout = parseFloat(potentialPayoutElement.textContent.replace('$', ''));
     
     // Create result message
+    const directionText = isUpDirection ? 'up' : 'down';
     const resultTitle = won ? 'Contract Won!' : 'Contract Lost';
     const resultMessage = won ? 
-        `Congratulations! You won $${payout.toFixed(2)}. There were ${upTickCount} up-ticks out of ${contractDuration}.` : 
-        `Sorry, you lost. There were ${upTickCount} up-ticks out of ${contractDuration}, but you needed at least ${contractMinUpticks}.`;
+        `Congratulations! You won $${payout.toFixed(2)}. There were ${targetTickCount} ${directionText}-ticks out of ${contractDuration}.` : 
+        `Sorry, you lost. There were ${targetTickCount} ${directionText}-ticks out of ${contractDuration}, but you needed at least ${contractMinTicks}.`;
     
     // Update notification
     resultTitleElement.textContent = resultTitle;
@@ -679,7 +713,7 @@ function completeContract(won, upTickCount) {
         placeTradeButton.disabled = false;
     }, 1000);
     
-    console.log(`Contract completed: ${won ? 'Won' : 'Lost'}, ${upTickCount}/${contractDuration} up-ticks`);
+    console.log(`Contract completed: ${won ? 'Won' : 'Lost'}, ${targetTickCount}/${contractDuration} ${isUpDirection ? 'up' : 'down'}-ticks`);
 }
 
 // Finalize contract visualization
