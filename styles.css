@@ -143,10 +143,24 @@ header p {
 
 .trading-panel h2 {
     color: var(--secondary-color);
-    margin-bottom: 20px;
+    margin-bottom: 15px;
     font-size: 20px;
     border-bottom: 1px solid #eee;
     padding-bottom: 10px;
+}
+
+.note-box {
+    background-color: #f8f9fa;
+    border-left: 4px solid var(--warning-color);
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: 0 var(--border-radius) var(--border-radius) 0;
+}
+
+.note-box p {
+    margin: 0;
+    font-size: 14px;
+    color: #666;
 }
 
 .form-group {
