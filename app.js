@@ -1,10 +1,12 @@
 // Global variables
 let chart;
 let tickHistory = [];
+let totalTickCount = 0; // Track total number of ticks generated
 let lastPrice = 10000;
 let tickInterval;
 let contractActive = false;
 let contractStartPrice = null;
+let contractStartTickNumber = 0; // Track which tick number the contract started at
 let contractTicks = [];
 let contractDuration = 0;
 let contractMinTicks = 0;
@@ -162,7 +164,6 @@ function setupEventListeners() {
     // Close notification button
     closeNotificationButton.addEventListener('click', () => {
         resultNotificationElement.classList.add('hidden');
-        resetApplication();
     });
 }
 
@@ -201,6 +202,12 @@ function generateTick() {
 
 // Add a tick to history and update UI
 function addTick(tick) {
+    // Increment total tick count
+    totalTickCount++;
+    
+    // Add tick number to the tick object
+    tick.tickNumber = totalTickCount;
+    
     // Add to tick history
     tickHistory.push(tick);
     
@@ -270,8 +277,8 @@ function updateTickHistoryDisplay() {
 
 // Update the chart
 function updateChart() {
-    // Create x and y arrays for the chart
-    const x = tickHistory.map((_, index) => index + 1);
+    // Create x and y arrays for the chart using actual tick numbers
+    const x = tickHistory.map(tick => tick.tickNumber);
     const y = tickHistory.map(tick => tick.price);
     
     // Create marker colors based on price direction
@@ -380,8 +387,9 @@ function placeTrade() {
     // Set contract as active
     contractActive = true;
     
-    // Store contract start price
+    // Store contract start price and tick number
     contractStartPrice = lastPrice;
+    contractStartTickNumber = totalTickCount + 1; // Next tick will be the first contract tick
     
     // Reset contract ticks
     contractTicks = [];
@@ -400,7 +408,7 @@ function placeTrade() {
     addContractVisualization();
     
     const directionText = isUpDirection ? 'up' : 'down';
-    console.log(`Contract started: ${contractDuration} ticks, min ${contractMinTicks} ${directionText}-ticks, start price: ${contractStartPrice}`);
+    console.log(`Contract started at tick ${contractStartTickNumber}: ${contractDuration} ticks, min ${contractMinTicks} ${directionText}-ticks, start price: ${contractStartPrice}`);
 }
 
 // Add contract visualization to chart
@@ -421,9 +429,9 @@ function addContractVisualization() {
     // Add a vertical line at the start of the contract
     shapes.push({
         type: 'line',
-        x0: tickHistory.length,
+        x0: contractStartTickNumber,
         y0: 0,
-        x1: tickHistory.length,
+        x1: contractStartTickNumber,
         y1: 1,
         yref: 'paper',
         line: {
@@ -436,9 +444,9 @@ function addContractVisualization() {
     // Add a rectangle to highlight the contract duration
     shapes.push({
         type: 'rect',
-        x0: tickHistory.length,
+        x0: contractStartTickNumber,
         y0: 0,
-        x1: tickHistory.length + contractDuration,
+        x1: contractStartTickNumber + contractDuration,
         y1: 1,
         yref: 'paper',
         fillcolor: 'rgba(243, 156, 18, 0.2)',
@@ -451,7 +459,7 @@ function addContractVisualization() {
     // Add a label for the contract
     const directionText = isUpDirection ? 'up' : 'down';
     annotations.push({
-        x: tickHistory.length + (contractDuration / 2),
+        x: contractStartTickNumber + (contractDuration / 2),
         y: contractStartPrice,
         text: `Contract: ${contractMinTicks}/${contractDuration} ${directionText}-ticks`,
         showarrow: false,
@@ -526,8 +534,8 @@ function updateContractVisualization(upTickCount) {
     const shapes = [...(layout.shapes || [])];
     const annotations = [...(layout.annotations || [])];
     
-    // Calculate the contract start index
-    const contractStartIndex = tickHistory.length - contractTicks.length;
+    // Get the current tick number
+    const currentTickNumber = totalTickCount;
     
     // Find and update the contract progress shape
     const progressShapeIndex = shapes.findIndex(shape => 
@@ -535,14 +543,14 @@ function updateContractVisualization(upTickCount) {
     
     if (progressShapeIndex >= 0) {
         // Update existing progress shape
-        shapes[progressShapeIndex].x1 = tickHistory.length;
+        shapes[progressShapeIndex].x1 = currentTickNumber;
     } else {
         // Add new progress shape
         shapes.push({
             type: 'rect',
-            x0: tickHistory.length - contractTicks.length,
+            x0: contractStartTickNumber,
             y0: 0,
-            x1: tickHistory.length,
+            x1: currentTickNumber,
             y1: 1,
             yref: 'paper',
             fillcolor: 'rgba(52, 152, 219, 0.3)',
@@ -560,13 +568,13 @@ function updateContractVisualization(upTickCount) {
     
     if (progressAnnotationIndex >= 0) {
         // Update existing annotation
-        annotations[progressAnnotationIndex].x = tickHistory.length;
+        annotations[progressAnnotationIndex].x = currentTickNumber;
         annotations[progressAnnotationIndex].y = lastPrice;
         annotations[progressAnnotationIndex].text = `${upTickCount} ${directionText}-ticks so far`;
     } else {
         // Add new progress annotation
         annotations.push({
-            x: tickHistory.length,
+            x: currentTickNumber,
             y: lastPrice,
             text: `${upTickCount} ${directionText}-ticks so far`,
             showarrow: false,
@@ -599,14 +607,14 @@ function addTickMarkers() {
     const upTickPrices = [];
     const downTickPrices = [];
     
-    // Populate the arrays
+    // Populate the arrays using actual tick numbers
     contractTicks.forEach((tick, index) => {
-        const tickIndex = tickHistory.length - contractTicks.length + index;
+        const tickNumber = contractStartTickNumber + index;
         if (tick.isUp) {
-            upTickIndices.push(tickIndex);
+            upTickIndices.push(tickNumber);
             upTickPrices.push(tick.price);
         } else {
-            downTickIndices.push(tickIndex);
+            downTickIndices.push(tickNumber);
             downTickPrices.push(tick.price);
         }
     });
@@ -675,8 +683,8 @@ function addTickMarkers() {
 function completeContract(won, targetTickCount) {
     // Store contract data before resetting
     const contractData = {
-        startIndex: tickHistory.length - contractTicks.length,
-        endIndex: tickHistory.length,
+        startIndex: contractStartTickNumber,
+        endIndex: contractStartTickNumber + contractDuration - 1,
         duration: contractDuration,
         minTicks: contractMinTicks,
         actualTicks: targetTickCount
@@ -776,9 +784,11 @@ function resetApplication() {
     
     // Reset global variables
     tickHistory = [];
+    totalTickCount = 0;
     lastPrice = 10000;
     contractActive = false;
     contractStartPrice = null;
+    contractStartTickNumber = 0;
     contractTicks = [];
     contractDuration = 0;
     contractMinTicks = 0;
