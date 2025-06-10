@@ -1,11 +1,15 @@
 // Global variables
 let chart;
-let tickHistory = [];
+let tickHistory = []; // Real market data only
+let contractTicks = []; // Separate array for contract simulation
 let tickStream;
 let activeSymbols = [];
 let selectedSymbol = '';
 let lastPrice = null;
 let ws;
+let isContractActive = false; // Flag to track if a contract is active
+let contractStartPrice = null; // Store contract start price
+let contractStartIndex = null; // Store contract start index
 
 // DOM elements
 const symbolSelect = document.getElementById('symbol');
@@ -28,105 +32,144 @@ const tickHistoryElement = document.querySelector('#tick-history span');
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
-    // Chart.js will automatically register the annotation plugin
-    // since we included the script in the HTML
-    
     initChart();
     connectWebSocket();
     setupEventListeners();
+    
+    // Create notification container
+    createNotificationContainer();
 });
 
-// Initialize Chart.js
-function initChart() {
-    const ctx = document.getElementById('tickChart').getContext('2d');
-    chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'Price',
-                data: [],
-                borderColor: '#2a9d8f',
-                backgroundColor: 'rgba(42, 157, 143, 0.1)',
-                borderWidth: 2,
-                tension: 0.1,
-                pointRadius: 4,
-                pointBackgroundColor: function(context) {
-                    // Color points based on direction (up/down)
-                    const index = context.dataIndex;
-                    const value = context.dataset.data[index];
-                    const previousValue = index > 0 ? context.dataset.data[index - 1] : value;
-                    
-                    if (value > previousValue) {
-                        return '#4caf50'; // Green for up
-                    } else if (value < previousValue) {
-                        return '#f44336'; // Red for down
-                    } else {
-                        return '#9e9e9e'; // Gray for no change
-                    }
-                },
-                pointBorderColor: function(context) {
-                    // Match border color with background color
-                    const index = context.dataIndex;
-                    const value = context.dataset.data[index];
-                    const previousValue = index > 0 ? context.dataset.data[index - 1] : value;
-                    
-                    if (value > previousValue) {
-                        return '#4caf50'; // Green for up
-                    } else if (value < previousValue) {
-                        return '#f44336'; // Red for down
-                    } else {
-                        return '#9e9e9e'; // Gray for no change
-                    }
-                }
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: {
-                    display: true,
-                    title: {
-                        display: true,
-                        text: 'Tick'
-                    }
-                },
-                y: {
-                    display: true,
-                    title: {
-                        display: true,
-                        text: 'Price'
-                    }
-                }
-            },
-            animation: {
-                duration: 0
-            },
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const index = context.dataIndex;
-                            const value = context.dataset.data[index];
-                            const previousValue = index > 0 ? context.dataset.data[index - 1] : value;
-                            
-                            let direction = '';
-                            if (value > previousValue) {
-                                direction = '↑ Up';
-                            } else if (value < previousValue) {
-                                direction = '↓ Down';
-                            } else {
-                                direction = '→ Same';
-                            }
-                            
-                            return `Price: ${value.toFixed(5)} (${direction})`;
-                        }
-                    }
-                }
-            }
+// Create notification container
+function createNotificationContainer() {
+    const container = document.createElement('div');
+    container.id = 'notification-container';
+    container.style.position = 'fixed';
+    container.style.top = '20px';
+    container.style.right = '20px';
+    container.style.zIndex = '1000';
+    document.body.appendChild(container);
+}
+
+// Show notification
+function showNotification(title, message, type = 'info', duration = 5000) {
+    const container = document.getElementById('notification-container');
+    if (!container) return;
+    
+    const notification = document.createElement('div');
+    notification.className = 'notification';
+    notification.style.backgroundColor = type === 'success' ? 'rgba(75, 180, 179, 0.9)' : 
+                                        type === 'error' ? 'rgba(255, 68, 79, 0.9)' : 
+                                        'rgba(39, 168, 224, 0.9)';
+    notification.style.color = 'white';
+    notification.style.padding = '15px';
+    notification.style.marginBottom = '10px';
+    notification.style.borderRadius = '8px';
+    notification.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+    notification.style.minWidth = '250px';
+    notification.style.maxWidth = '350px';
+    notification.style.opacity = '0';
+    notification.style.transition = 'opacity 0.3s ease-in-out';
+    
+    const titleElement = document.createElement('h4');
+    titleElement.style.margin = '0 0 5px 0';
+    titleElement.style.fontWeight = 'bold';
+    titleElement.textContent = title;
+    
+    const messageElement = document.createElement('p');
+    messageElement.style.margin = '0';
+    messageElement.textContent = message;
+    
+    const closeButton = document.createElement('button');
+    closeButton.textContent = '×';
+    closeButton.style.position = 'absolute';
+    closeButton.style.top = '5px';
+    closeButton.style.right = '10px';
+    closeButton.style.background = 'none';
+    closeButton.style.border = 'none';
+    closeButton.style.color = 'white';
+    closeButton.style.fontSize = '20px';
+    closeButton.style.cursor = 'pointer';
+    closeButton.style.fontWeight = 'bold';
+    closeButton.onclick = () => {
+        removeNotification(notification);
+    };
+    
+    notification.style.position = 'relative';
+    notification.appendChild(closeButton);
+    notification.appendChild(titleElement);
+    notification.appendChild(messageElement);
+    
+    container.appendChild(notification);
+    
+    // Trigger reflow to enable transition
+    notification.offsetHeight;
+    notification.style.opacity = '1';
+    
+    // Auto-remove after duration
+    if (duration > 0) {
+        setTimeout(() => {
+            removeNotification(notification);
+        }, duration);
+    }
+}
+
+// Remove notification with animation
+function removeNotification(notification) {
+    notification.style.opacity = '0';
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
         }
-    });
+    }, 300);
+}
+
+// Initialize Plotly.js chart
+function initChart() {
+    const chartDiv = document.getElementById('tickChart');
+    
+    // Create an empty chart
+    const data = [{
+        x: [],
+        y: [],
+        type: 'scatter',
+        mode: 'lines+markers',
+        line: {
+            color: '#27A8E0',
+            width: 2
+        },
+        marker: {
+            size: 8,
+            color: []  // Will be set dynamically
+        },
+        name: 'Price'
+    }];
+    
+    const layout = {
+        title: 'Tick Price Chart',
+        xaxis: {
+            title: 'Tick',
+            showgrid: true,
+            zeroline: false
+        },
+        yaxis: {
+            title: 'Price',
+            showgrid: true,
+            zeroline: false
+        },
+        margin: { t: 50, l: 50, r: 30, b: 50 },
+        hovermode: 'closest',
+        showlegend: false,
+        shapes: []  // For contract visualization
+    };
+    
+    const config = {
+        responsive: true,
+        displayModeBar: false
+    };
+    
+    Plotly.newPlot(chartDiv, data, layout, config);
+    chart = chartDiv;
 }
 
 // Connect to Deriv WebSocket API
@@ -208,10 +251,20 @@ function handleActiveSymbols(symbols) {
         symbolSelect.appendChild(option);
     });
     
-    // Select first symbol by default
-    if (activeSymbols.length > 0) {
+    // Find stpRNG in the active symbols
+    const stpRNGSymbol = activeSymbols.find(symbol => symbol.symbol === 'stpRNG');
+    
+    // Select stpRNG by default if available, otherwise select the first symbol
+    if (stpRNGSymbol) {
+        selectedSymbol = 'stpRNG';
+        symbolSelect.value = selectedSymbol;
+    } else if (activeSymbols.length > 0) {
         selectedSymbol = activeSymbols[0].symbol;
         symbolSelect.value = selectedSymbol;
+    }
+    
+    // Subscribe to the selected symbol's tick stream
+    if (selectedSymbol) {
         subscribeToTickStream(selectedSymbol);
     }
 }
@@ -225,6 +278,9 @@ function subscribeToTickStream(symbol) {
                 forget: tickStream
             }));
         }
+        
+        // Reset contract state when changing symbols
+        resetContractState();
         
         // Subscribe to new tick stream
         ws.send(JSON.stringify({
@@ -242,6 +298,26 @@ function subscribeToTickStream(symbol) {
     }
 }
 
+// Reset contract state
+function resetContractState() {
+    isContractActive = false;
+    contractTicks = [];
+    contractStartPrice = null;
+    contractStartIndex = null;
+    
+    // Clear contract visualization
+    clearContractVisualization();
+}
+
+// Clear contract visualization
+function clearContractVisualization() {
+    // Clear shapes (annotations)
+    Plotly.relayout(chart, {
+        shapes: [],
+        annotations: []
+    });
+}
+
 // Handle tick history response
 function handleTickHistory(history) {
     // Reset tick history
@@ -254,7 +330,7 @@ function handleTickHistory(history) {
             symbol: history.symbol,
             price: price,
             epoch: timestamp
-        }, true);
+        });
     });
     
     // Update calculations
@@ -267,14 +343,19 @@ function handleTickUpdate(tick) {
     tickStream = tick.id;
     
     // Add new tick
-    addTick(tick, false);
+    addTick(tick);
     
     // Update calculations
     updateCalculations();
+    
+    // If a contract is active, update the contract progress
+    if (isContractActive) {
+        updateContractWithNewTick(tick);
+    }
 }
 
 // Add a tick to history and update chart
-function addTick(tick, isHistory) {
+function addTick(tick) {
     console.log('Adding tick:', tick);
     
     // Get price from the appropriate field (quote for new API format, price for history)
@@ -292,7 +373,8 @@ function addTick(tick, isHistory) {
     // Add to tick history
     tickHistory.push({
         price: price,
-        time: time
+        time: time,
+        epoch: tick.epoch
     });
     
     // Keep only the last 20 ticks
@@ -303,7 +385,7 @@ function addTick(tick, isHistory) {
     // Update chart
     updateChart();
     
-    // Always update UI, even for history to ensure initial display is correct
+    // Update UI
     // Update current price
     currentTickElement.textContent = price.toFixed(5);
     
@@ -338,12 +420,46 @@ function addTick(tick, isHistory) {
 
 // Update chart with tick history
 function updateChart() {
-    // Update chart data
-    chart.data.labels = tickHistory.map((tick, index) => index + 1);
-    chart.data.datasets[0].data = tickHistory.map(tick => tick.price);
+    // Create x and y arrays for the chart
+    const x = tickHistory.map((tick, index) => index + 1);
+    const y = tickHistory.map(tick => tick.price);
     
-    // Update chart
-    chart.update();
+    // Create marker colors based on price direction
+    const markerColors = tickHistory.map((tick, index, arr) => {
+        if (index === 0) return '#9e9e9e'; // Gray for first point
+        
+        const prevPrice = arr[index - 1].price;
+        if (tick.price > prevPrice) {
+            return '#4BB4B3'; // Green for up
+        } else if (tick.price < prevPrice) {
+            return '#FF444F'; // Red for down
+        } else {
+            return '#9e9e9e'; // Gray for no change
+        }
+    });
+    
+    // Update the chart data
+    Plotly.update(chart, {
+        x: [x],
+        y: [y],
+        'marker.color': [markerColors]
+    });
+    
+    // Calculate appropriate y-axis range
+    if (tickHistory.length > 0) {
+        const prices = tickHistory.map(tick => tick.price);
+        const minPrice = Math.min(...prices);
+        const maxPrice = Math.max(...prices);
+        const range = maxPrice - minPrice;
+        
+        // Add padding to the min/max values (10% of the range)
+        const padding = range * 0.1;
+        
+        // Update y-axis range
+        Plotly.relayout(chart, {
+            'yaxis.range': [minPrice - padding, maxPrice + padding]
+        });
+    }
 }
 
 // Update tick history display
@@ -479,10 +595,10 @@ function updateCalculations() {
     summaryStatementElement.textContent = `For a $${stake.toFixed(2)} stake, if there are at least ${minUpticks} up-ticks in the next ${duration} ticks, you win $${potentialPayout.toFixed(2)}.`;
     
     // Enable/disable place trade button
-    placeTradeButton.disabled = stake <= 0 || tickHistory.length < 5;
+    placeTradeButton.disabled = stake <= 0 || tickHistory.length < 5 || isContractActive;
 }
 
-// Place trade function (simulation)
+// Place trade function
 function placeTrade() {
     // Get form values
     const duration = parseInt(durationSlider.value);
@@ -493,168 +609,170 @@ function placeTrade() {
     placeTradeButton.disabled = true;
     placeTradeButton.textContent = 'Trading...';
     
-    // Simulate trade (in a real implementation, this would call the API)
-    let tickCount = 0;
-    let upTickCount = 0;
-    let tradeInterval;
-    let contractStartIndex = tickHistory.length - 1;
-    let contractTicks = [];
+    // Set contract as active
+    isContractActive = true;
     
-    // Create a copy of current tick history for reference
-    const startPrice = tickHistory[contractStartIndex].price;
+    // Reset contract ticks
+    contractTicks = [];
+    
+    // Store contract start information
+    contractStartIndex = tickHistory.length - 1;
+    contractStartPrice = tickHistory[contractStartIndex].price;
     
     // Add contract visualization to chart
     addContractToChart(contractStartIndex, duration, minUpticks);
+}
+
+// Update contract with new tick
+function updateContractWithNewTick(tick) {
+    if (!isContractActive) return;
     
-    // For simulation purposes, we'll create some fake ticks
-    // In a real implementation, we would use the actual incoming ticks
-    const simulateTrade = () => {
-        // Simulate a new tick
-        tickCount++;
+    // Get price from the appropriate field
+    const price = parseFloat(tick.quote || tick.price);
+    
+    // Determine if it's an up tick compared to contract start
+    const isUpTick = price > contractStartPrice;
+    
+    // Add to contract ticks
+    contractTicks.push({
+        price: price,
+        isUp: isUpTick,
+        epoch: tick.epoch
+    });
+    
+    // Get contract parameters
+    const duration = parseInt(durationSlider.value);
+    const minUpticks = parseInt(minUpticksSlider.value);
+    
+    // Count up ticks
+    const upTickCount = contractTicks.filter(tick => tick.isUp).length;
+    
+    // Update contract visualization
+    updateContractProgress(upTickCount, contractTicks.length, duration, minUpticks);
+    
+    // Check if contract is complete
+    if (contractTicks.length >= duration) {
+        // Determine outcome
+        const won = upTickCount >= minUpticks;
         
-        // Randomly determine if it's an up tick (50% chance)
-        const isUpTick = Math.random() > 0.5;
-        if (isUpTick) {
-            upTickCount++;
+        // Update contract visualization with final result
+        updateContractResult(won);
+        
+        // Display result directly on the page (no alert)
+        const payout = parseFloat(potentialPayoutElement.textContent.replace('$', ''));
+        const resultMessage = won ? 
+            `Congratulations! You won $${payout.toFixed(2)}!` : 
+            `Sorry, you lost. There were ${upTickCount} up-ticks out of ${duration}.`;
+        
+        // Create a result banner
+        const resultBanner = document.createElement('div');
+        resultBanner.className = 'result-banner';
+        resultBanner.style.backgroundColor = won ? 'rgba(75, 180, 179, 0.9)' : 'rgba(255, 68, 79, 0.9)';
+        resultBanner.style.color = 'white';
+        resultBanner.style.padding = '15px';
+        resultBanner.style.borderRadius = '8px';
+        resultBanner.style.textAlign = 'center';
+        resultBanner.style.margin = '15px 0';
+        resultBanner.style.fontWeight = 'bold';
+        resultBanner.style.fontSize = '16px';
+        resultBanner.innerHTML = `<strong>${won ? 'Contract Won!' : 'Contract Lost'}</strong><br>${resultMessage}`;
+        
+        // Insert at the top of the page
+        const container = document.querySelector('.container');
+        if (container && container.firstChild) {
+            container.insertBefore(resultBanner, container.firstChild);
+        } else {
+            document.body.insertBefore(resultBanner, document.body.firstChild);
         }
         
-        // Generate a random price change (between -0.05% and +0.05%)
-        const priceChange = startPrice * (isUpTick ? 0.0005 : -0.0005);
-        const newPrice = startPrice + (priceChange * tickCount);
-        
-        // Store tick info for visualization
-        contractTicks.push({
-            index: contractStartIndex + tickCount,
-            price: newPrice,
-            isUp: isUpTick
-        });
-        
-        // Update contract visualization
-        updateContractProgress(contractTicks, tickCount, duration, minUpticks, upTickCount);
-        
-        // Update progress
-        placeTradeButton.textContent = `Trading... (${tickCount}/${duration}) - ${upTickCount} up-ticks`;
-        
-        // Check if we've reached the duration
-        if (tickCount >= duration) {
-            clearInterval(tradeInterval);
-            
-            // Determine outcome
-            const won = upTickCount >= minUpticks;
-            
-            // Update contract visualization with final result
-            updateContractResult(won, contractTicks);
-            
-            // Show result
-            if (won) {
-                const payout = parseFloat(potentialPayoutElement.textContent.replace('$', ''));
-                alert(`Congratulations! You won $${payout.toFixed(2)}!`);
-            } else {
-                alert(`Sorry, you lost. There were ${upTickCount} up-ticks out of ${duration}.`);
+        // Remove the banner after 10 seconds
+        setTimeout(() => {
+            if (resultBanner.parentNode) {
+                resultBanner.parentNode.removeChild(resultBanner);
             }
-            
-            // Reset button
-            placeTradeButton.disabled = false;
-            placeTradeButton.textContent = 'Place Trade';
-        }
-    };
-    
-    // Start the simulation
-    tradeInterval = setInterval(simulateTrade, 1000);
+        }, 10000);
+        
+        // Reset contract state
+        isContractActive = false;
+        
+        // Reset button
+        placeTradeButton.disabled = false;
+        placeTradeButton.textContent = 'Place Trade';
+        
+        console.log("Contract completed:", resultMessage);
+    } else {
+        // Update progress
+        placeTradeButton.textContent = `Trading... (${contractTicks.length}/${duration}) - ${upTickCount} up-ticks`;
+    }
 }
 
 // Add contract visualization to chart
 function addContractToChart(startIndex, duration, minUpticks) {
-    // Add a vertical line to mark contract start
-    if (!chart.data.datasets[1]) {
-        chart.data.datasets.push({
-            label: 'Contract Start',
-            data: Array(chart.data.labels.length).fill(null),
-            borderColor: '#ff9800',
-            borderWidth: 2,
-            borderDash: [5, 5],
-            pointRadius: 0,
-            fill: false
-        });
-    }
+    console.log("Adding contract visualization at index:", startIndex);
     
-    // Mark the starting point
-    chart.data.datasets[1].data = Array(chart.data.labels.length).fill(null);
-    chart.data.datasets[1].data[startIndex] = chart.data.datasets[0].data[startIndex];
-    
-    // Add a third dataset for contract ticks
-    if (!chart.data.datasets[2]) {
-        chart.data.datasets.push({
-            label: 'Contract Ticks',
-            data: Array(chart.data.labels.length).fill(null),
-            pointBackgroundColor: [],
-            pointBorderColor: [],
-            pointRadius: 6,
-            pointHoverRadius: 8,
-            fill: false,
-            showLine: false
-        });
-    }
-    
-    // Reset contract ticks data
-    chart.data.datasets[2].data = Array(chart.data.labels.length).fill(null);
+    // Clear existing shapes
+    const shapes = [];
+    const annotations = [];
     
     // Add a vertical line at the start of the contract
-    const startLine = {
+    shapes.push({
         type: 'line',
-        xMin: startIndex,
-        xMax: startIndex,
-        yMin: 0,
-        yMax: 1,
-        borderColor: '#ff9800',
-        borderWidth: 2,
-        borderDash: [5, 5]
-    };
+        x0: startIndex + 1,
+        y0: 0,
+        x1: startIndex + 1,
+        y1: 1,
+        yref: 'paper',
+        line: {
+            color: '#ff9800',
+            width: 3,
+            dash: 'dash'
+        }
+    });
     
-    // Add a box to highlight the contract duration
-    const contractBox = {
-        type: 'box',
-        xMin: startIndex,
-        xMax: startIndex + duration,
-        yMin: 0,
-        yMax: 1,
-        backgroundColor: 'rgba(255, 152, 0, 0.1)',
-        borderColor: 'rgba(255, 152, 0, 0.5)',
-        borderWidth: 1
-    };
+    // Add a rectangle to highlight the contract duration
+    shapes.push({
+        type: 'rect',
+        x0: startIndex + 1,
+        y0: 0,
+        x1: startIndex + duration + 1,
+        y1: 1,
+        yref: 'paper',
+        fillcolor: 'rgba(255, 152, 0, 0.2)',
+        line: {
+            color: 'rgba(255, 152, 0, 0.7)',
+            width: 2
+        }
+    });
     
     // Add a label for the contract details
-    const contractLabel = {
-        type: 'label',
-        xValue: startIndex,
-        yValue: 0.95,
-        content: `Contract: ${minUpticks}/${duration} up-ticks`,
-        backgroundColor: 'rgba(255, 152, 0, 0.7)',
-        color: 'white',
+    annotations.push({
+        x: startIndex + 1 + (duration / 2),
+        y: contractStartPrice,
+        text: `Contract: ${minUpticks}/${duration} up-ticks`,
+        showarrow: false,
+        bgcolor: 'rgba(255, 152, 0, 0.9)',
+        bordercolor: 'rgba(255, 152, 0, 0.9)',
+        borderwidth: 1,
+        borderpad: 6,
         font: {
-            size: 12
-        },
-        padding: 4
-    };
+            color: 'white',
+            size: 14,
+            weight: 'bold'
+        }
+    });
     
-    // Update chart
-    chart.update();
+    // Update the chart with the new shapes and annotations
+    Plotly.relayout(chart, {
+        shapes: shapes,
+        annotations: annotations
+    });
+    
+    console.log("Contract visualization added");
 }
 
 // Update contract progress visualization
-function updateContractProgress(contractTicks, tickCount, duration, minUpticks, upTickCount) {
-    // Reset data array
-    chart.data.datasets[2].data = Array(chart.data.labels.length).fill(null);
-    chart.data.datasets[2].pointBackgroundColor = [];
-    chart.data.datasets[2].pointBorderColor = [];
-    
-    // Add each contract tick
-    contractTicks.forEach(tick => {
-        chart.data.datasets[2].data[tick.index] = tick.price;
-        const color = tick.isUp ? 'rgba(76, 175, 80, 0.8)' : 'rgba(244, 67, 54, 0.8)';
-        chart.data.datasets[2].pointBackgroundColor[tick.index] = color;
-        chart.data.datasets[2].pointBorderColor[tick.index] = color;
-    });
+function updateContractProgress(upTickCount, tickCount, duration, minUpticks) {
+    console.log("Updating contract progress:", upTickCount, "/", tickCount);
     
     // Update progress text
     const progressText = document.getElementById('current-tick');
@@ -663,36 +781,170 @@ function updateContractProgress(contractTicks, tickCount, duration, minUpticks, 
                                  Contract Progress: <span>${upTickCount}/${tickCount} up-ticks (need ${minUpticks}/${duration})</span>`;
     }
     
-    chart.update();
+    // Get the current shapes and annotations
+    const layout = chart.layout || {};
+    const shapes = [...(layout.shapes || [])];
+    const annotations = [...(layout.annotations || [])];
+    
+    // Add or update progress box
+    const progressBoxIndex = shapes.findIndex(shape => shape.fillcolor === 'rgba(75, 180, 179, 0.2)');
+    if (progressBoxIndex >= 0) {
+        shapes[progressBoxIndex].x1 = contractStartIndex + 1 + tickCount;
+    } else {
+        shapes.push({
+            type: 'rect',
+            x0: contractStartIndex + 1,
+            y0: 0,
+            x1: contractStartIndex + 1 + tickCount,
+            y1: 1,
+            yref: 'paper',
+            fillcolor: 'rgba(75, 180, 179, 0.2)',
+            line: {
+                color: 'rgba(75, 180, 179, 0.7)',
+                width: 2
+            }
+        });
+    }
+    
+    // Add progress text annotation
+    const progressTextIndex = annotations.findIndex(ann => ann.text && ann.text.includes('up-ticks'));
+    if (progressTextIndex >= 0) {
+        annotations[progressTextIndex].text = `${upTickCount}/${tickCount} up-ticks`;
+        annotations[progressTextIndex].x = contractStartIndex + 1 + tickCount;
+        annotations[progressTextIndex].y = tickHistory[tickHistory.length-1].price;
+    } else {
+        annotations.push({
+            x: contractStartIndex + 1 + tickCount,
+            y: tickHistory[tickHistory.length-1].price,
+            text: `${upTickCount}/${tickCount} up-ticks`,
+            showarrow: false,
+            bgcolor: 'rgba(75, 180, 179, 0.9)',
+            bordercolor: 'rgba(75, 180, 179, 0.9)',
+            borderwidth: 1,
+            borderpad: 4,
+            font: {
+                color: 'white',
+                size: 12,
+                weight: 'bold'
+            }
+        });
+    }
+    
+    // Add tick markers as scatter points
+    const upTickMarkers = contractTicks.filter(tick => tick.isUp);
+    const downTickMarkers = contractTicks.filter(tick => !tick.isUp);
+    
+    // Create data for up ticks
+    if (upTickMarkers.length > 0) {
+        const upTickData = {
+            x: upTickMarkers.map((_, i) => contractStartIndex + 1 + i),
+            y: upTickMarkers.map(tick => tick.price),
+            mode: 'markers',
+            marker: {
+                color: 'rgba(75, 180, 179, 0.9)',
+                size: 10,
+                line: {
+                    color: 'white',
+                    width: 2
+                }
+            },
+            showlegend: false,
+            hoverinfo: 'none',
+            name: 'Up Ticks'
+        };
+        
+        // Check if up tick trace already exists
+        const upTickTraceIndex = chart.data.findIndex(trace => trace.name === 'Up Ticks');
+        if (upTickTraceIndex >= 0) {
+            Plotly.deleteTraces(chart, upTickTraceIndex);
+        }
+        
+        Plotly.addTraces(chart, upTickData);
+    }
+    
+    // Create data for down ticks
+    if (downTickMarkers.length > 0) {
+        const downTickData = {
+            x: downTickMarkers.map((_, i) => contractStartIndex + 1 + i),
+            y: downTickMarkers.map(tick => tick.price),
+            mode: 'markers',
+            marker: {
+                color: 'rgba(255, 68, 79, 0.9)',
+                size: 10,
+                line: {
+                    color: 'white',
+                    width: 2
+                }
+            },
+            showlegend: false,
+            hoverinfo: 'none',
+            name: 'Down Ticks'
+        };
+        
+        // Check if down tick trace already exists
+        const downTickTraceIndex = chart.data.findIndex(trace => trace.name === 'Down Ticks');
+        if (downTickTraceIndex >= 0) {
+            Plotly.deleteTraces(chart, downTickTraceIndex);
+        }
+        
+        Plotly.addTraces(chart, downTickData);
+    }
+    
+    // Update the chart with the new shapes and annotations
+    Plotly.relayout(chart, {
+        shapes: shapes,
+        annotations: annotations
+    });
 }
 
 // Update contract result visualization
-function updateContractResult(won, contractTicks) {
-    // Add a result indicator
-    const resultText = document.createElement('div');
-    resultText.className = 'result-indicator';
-    resultText.style.backgroundColor = won ? 'rgba(76, 175, 80, 0.7)' : 'rgba(244, 67, 54, 0.7)';
-    resultText.style.color = 'white';
-    resultText.style.padding = '10px';
-    resultText.style.borderRadius = '5px';
-    resultText.style.textAlign = 'center';
-    resultText.style.margin = '10px 0';
-    resultText.style.fontWeight = 'bold';
-    resultText.textContent = won ? 'Contract Won!' : 'Contract Lost';
+function updateContractResult(won) {
+    console.log("Updating contract result:", won ? "Won" : "Lost");
     
-    // Insert before the place trade button
-    const placeTradeButton = document.getElementById('place-trade');
-    if (placeTradeButton && placeTradeButton.parentNode) {
-        placeTradeButton.parentNode.insertBefore(resultText, placeTradeButton);
-    }
+    // Get the current shapes and annotations
+    const layout = chart.layout || {};
+    const shapes = [...(layout.shapes || [])];
+    const annotations = [...(layout.annotations || [])];
     
-    // Update chart
-    chart.update();
-    
-    // Remove the result indicator after 5 seconds
-    setTimeout(() => {
-        if (resultText.parentNode) {
-            resultText.parentNode.removeChild(resultText);
+    // Add result annotation
+    annotations.push({
+        x: contractStartIndex + 1 + contractTicks.length,
+        y: tickHistory[tickHistory.length-1].price,
+        text: won ? 'Contract Won!' : 'Contract Lost',
+        showarrow: true,
+        arrowhead: 2,
+        arrowsize: 1,
+        arrowwidth: 2,
+        arrowcolor: won ? 'rgba(75, 180, 179, 0.9)' : 'rgba(255, 68, 79, 0.9)',
+        bgcolor: won ? 'rgba(75, 180, 179, 0.9)' : 'rgba(255, 68, 79, 0.9)',
+        bordercolor: won ? 'rgba(75, 180, 179, 0.9)' : 'rgba(255, 68, 79, 0.9)',
+        borderwidth: 1,
+        borderpad: 6,
+        font: {
+            color: 'white',
+            size: 16,
+            weight: 'bold'
         }
-    }, 5000);
+    });
+    
+    // Add result highlight
+    shapes.push({
+        type: 'rect',
+        x0: contractStartIndex + 1,
+        y0: 0,
+        x1: contractStartIndex + 1 + contractTicks.length,
+        y1: 1,
+        yref: 'paper',
+        fillcolor: won ? 'rgba(75, 180, 179, 0.3)' : 'rgba(255, 68, 79, 0.3)',
+        line: {
+            color: won ? 'rgba(75, 180, 179, 0.9)' : 'rgba(255, 68, 79, 0.9)',
+            width: 3
+        }
+    });
+    
+    // Update the chart with the new shapes and annotations
+    Plotly.relayout(chart, {
+        shapes: shapes,
+        annotations: annotations
+    });
 }
