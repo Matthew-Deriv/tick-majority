@@ -12,51 +12,6 @@
             <h1>Tick-Majority – Updated House Edge Mechanism</h1>
         </header>
 
-        <section class="explanation">
-            <h2>House Edge Application</h2>
-            <ul>
-                <li><strong>Contract Price (Fair Probability):</strong> \( P \)</li>
-                <li><strong>House Edge (as absolute, not percent of price):</strong> \( H \)
-                    <ul>
-                        <li>If house edge is 10% and \( P = 0.2 \), then \( H = 0.02 \) (10% of 0.2)</li>
-                        <li>If house edge is set as a flat 0.1, it's simply 0.1</li>
-                    </ul>
-                </li>
-                <li><strong>Client Stake:</strong> \( S \)</li>
-                <li><strong>Client chooses:</strong>
-                    <ul>
-                        <li>Number of ticks (\( n \)), e.g. 5–10</li>
-                        <li>Minimum up-ticks (\( k \)), e.g. 3–n</li>
-                    </ul>
-                </li>
-            </ul>
-
-            <p><strong>Calculation of Number of Contracts Purchased:</strong></p>
-            <div class="formula">
-                \[ \text{Contracts} = \frac{S}{P + H} \]
-            </div>
-
-            <p>Payoff: If the event happens (≥k up in n), the client's payout is number of contracts × $1 per contract (minus any fees).</p>
-        </section>
-
-        <section class="example">
-            <h2>Example Calculation</h2>
-            <p><strong>Suppose:</strong></p>
-            <ul>
-                <li>\( n = 8 \), \( k = 6 \)</li>
-                <li>Calculated fair price (binomial probability): \( P = 0.15 \)</li>
-                <li>House edge: add 0.05 (flat, for clarity in this example; you may set as % of \( P \))</li>
-                <li>Stake: $10</li>
-            </ul>
-
-            <p><strong>Contracts:</strong></p>
-            <div class="formula">
-                \[ \text{Contracts} = \frac{10}{0.15 + 0.05} = \frac{10}{0.20} = 50 \]
-            </div>
-
-            <p>If event occurs, client receives: \( 50 \times \$1 = \$50 \) (on a \$10 stake; effective payout 5:1).</p>
-        </section>
-
         <section class="trading-interface">
             <h2>Tick-Majority Trading</h2>
             
@@ -80,14 +35,14 @@
             <div class="trading-form">
                 <div class="form-group">
                     <label for="duration">Duration:</label>
-                    <input type="range" id="duration" min="5" max="10" value="8">
-                    <span id="duration-value">8 ticks</span>
+                    <input type="range" id="duration" min="5" max="10" value="5">
+                    <span id="duration-value">5 ticks</span>
                 </div>
 
                 <div class="form-group">
                     <label for="min-upticks">Minimum Up-ticks:</label>
-                    <input type="range" id="min-upticks" min="3" max="8" value="6">
-                    <span id="min-upticks-value">6 ticks</span>
+                    <input type="range" id="min-upticks" min="3" max="5" value="3">
+                    <span id="min-upticks-value">3 ticks</span>
                 </div>
 
                 <div class="form-group">
@@ -96,17 +51,11 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="house-edge-type">House Edge Type:</label>
-                    <select id="house-edge-type">
-                        <option value="flat">Flat</option>
-                        <option value="percentage">Percentage of Price</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
                     <label for="house-edge">House Edge:</label>
                     <input type="number" id="house-edge" min="0.01" step="0.01" value="0.05">
                 </div>
+                
+                <button id="place-trade" disabled>Place Trade</button>
             </div>
 
             <div class="calculation-results">
@@ -135,9 +84,48 @@
             <div class="summary">
                 <p id="summary-statement">For a $10 stake, if there are at least 6 up-ticks in the next 8 ticks, you win $50.00.</p>
             </div>
-
-            <button id="place-trade" disabled>Place Trade</button>
         </section>
+
+        <section class="explanation">
+            <h2>House Edge Application</h2>
+            <ul>
+                <li><strong>Contract Price (Fair Probability):</strong> \( P \)</li>
+                <li><strong>House Edge (as absolute flat value):</strong> \( H \)</li>
+                <li><strong>Client Stake:</strong> \( S \)</li>
+                <li><strong>Client chooses:</strong>
+                    <ul>
+                        <li>Number of ticks (\( n \)), e.g. 5–10</li>
+                        <li>Minimum up-ticks (\( k \)), e.g. 3–n</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <p><strong>Calculation of Number of Contracts Purchased:</strong></p>
+            <div class="formula">
+                \[ \text{Contracts} = \frac{S}{P + H} \]
+            </div>
+
+            <p>Payoff: If the event happens (≥k up in n), the client's payout is number of contracts × $1 per contract (minus any fees).</p>
+        </section>
+
+        <section class="example">
+            <h2>Example Calculation</h2>
+            <p><strong>Suppose:</strong></p>
+            <ul>
+                <li>\( n = 8 \), \( k = 6 \)</li>
+                <li>Calculated fair price (binomial probability): \( P = 0.15 \)</li>
+                <li>House edge: add 0.05 (flat value)</li>
+                <li>Stake: $10</li>
+            </ul>
+
+            <p><strong>Contracts:</strong></p>
+            <div class="formula">
+                \[ \text{Contracts} = \frac{10}{0.15 + 0.05} = \frac{10}{0.20} = 50 \]
+            </div>
+
+            <p>If event occurs, client receives: \( 50 \times \$1 = \$50 \) (on a \$10 stake; effective payout 5:1).</p>
+        </section>
+
 
         <section class="backend-formula">
             <h2>Backend/Formula</h2>
@@ -168,8 +156,9 @@ def tick_majority_contracts(stake, n, k, house_edge, p=0.5):
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     
-    <!-- Chart.js for tick visualization -->
+    <!-- Chart.js and plugins for tick visualization -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.0/dist/chartjs-plugin-annotation.min.js"></script>
     
     <!-- Custom JavaScript -->
     <script src="app.js"></script>

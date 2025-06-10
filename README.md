@@ -3,9 +3,7 @@
 ### **House Edge Application**
 
 - **Contract Price (Fair Probability):** \( P \)
-- **House Edge (as absolute, not percent of price):** \( H \)
-  - If house edge is 10% and \( P = 0.2 \), then \( H = 0.02 \) (10% of 0.2)
-  - If house edge is set as a flat 0.1, it’s simply 0.1
+- **House Edge (as absolute flat value):** \( H \)
 - **Client Stake:** \( S \)
 - **Client chooses:**
   - Number of ticks (\( n \)), e.g. 5–10
@@ -25,7 +23,7 @@ Payoff: If the event happens (≥k up in n), the client’s payout is number of 
 **Suppose:**
 - \( n = 8 \), \( k = 6 \)
 - Calculated fair price (binomial probability): \( P = 0.15 \)
-- House edge: add 0.05 (flat, for clarity in this example; you may set as % of \( P \))
+- House edge: add 0.05 (flat value)
 - Stake: \$10
 
 **Contracts:**
@@ -44,6 +42,9 @@ If event occurs, client receives: \( 50 \times \$1 = \$50 \) (on a \$10 stake; e
 - **Duration:** [Slider: 5–10 ticks]
 - **Minimum up-ticks:** [Slider: 3–chosen duration]
 - **Stake:** [Input \$]
+- **House Edge:** [Input flat value]
+
+Button: **[Place Trade]**
 
 Below, show:
 - **Contract price (fair):** 0.15
@@ -54,8 +55,6 @@ Below, show:
 
 **Summary Statement** (dynamic):  
 *"For a \$10 stake, if there are at least 6 up-ticks in the next 8 ticks, you win \$50.00."*
-
-Button: **[Place Trade]**
 
 ---
 
@@ -80,4 +79,3 @@ def tick_majority_contracts(stake, n, k, house_edge, p=0.5):
 - **Clear, transparent:** Client sees how much each contract "costs" including edge.
 - **Payouts scale with contracts:** Just like classic "unit" binary option models.
 - **House edge is simple to reason about**, works for backend and live UI.
-
