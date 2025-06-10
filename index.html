@@ -5,161 +5,137 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tick-Majority Trading</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- Plotly.js for chart visualization -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Tick-Majority – Updated House Edge Mechanism</h1>
+            <h1>Tick-Majority Trading</h1>
+            <p>Random price generator starting at 10,000 with ±0.1 fluctuations</p>
         </header>
 
-        <section class="trading-interface">
-            <h2>Tick-Majority Trading</h2>
-            
-            <div class="symbol-selector">
-                <label for="symbol">Select Symbol:</label>
-                <select id="symbol">
-                    <option value="">Loading symbols...</option>
-                </select>
-            </div>
-
+        <div class="main-content">
+            <!-- Chart Container -->
             <div class="chart-container">
-                <div id="tickChart" style="width:100%; height:400px;"></div>
+                <div id="priceChart"></div>
             </div>
 
-            <div class="tick-data">
-                <div id="current-tick">Current Price: <span>--</span></div>
-                <div id="tick-direction">Last Direction: <span>--</span></div>
-                <div id="tick-history">Recent Ticks: <span>--</span></div>
+            <!-- Current Price Info -->
+            <div class="price-info">
+                <div class="price-display">
+                    <span id="currentPrice">10000.0</span>
+                    <span id="priceDirection" class="neutral">→</span>
+                </div>
+                <div class="tick-history">
+                    <span>Recent: </span><span id="tickHistory">-</span>
+                </div>
             </div>
 
-            <div class="trading-form">
+            <!-- Trading Form -->
+            <div class="trading-panel">
+                <h2>Place a Trade</h2>
+                
                 <div class="form-group">
                     <label for="duration">Duration:</label>
-                    <input type="range" id="duration" min="5" max="10" value="5">
-                    <span id="duration-value">5 ticks</span>
-                </div>
-
-                <div class="form-group">
-                    <label for="min-upticks">Minimum Up-ticks:</label>
-                    <input type="range" id="min-upticks" min="3" max="5" value="3">
-                    <span id="min-upticks-value">3 ticks</span>
-                </div>
-
-                <div class="form-group">
-                    <label for="stake">Stake ($):</label>
-                    <input type="number" id="stake" min="1" step="1" value="10">
-                </div>
-
-                <div class="form-group">
-                    <label for="house-edge">House Edge:</label>
-                    <input type="number" id="house-edge" min="0.01" step="0.01" value="0.05">
+                    <div class="slider-container">
+                        <input type="range" id="duration" min="5" max="10" value="7" class="slider">
+                        <span id="durationValue">7 ticks</span>
+                    </div>
                 </div>
                 
-                <button id="place-trade" disabled>Place Trade</button>
+                <div class="form-group">
+                    <label for="minUpticks">Minimum Up-ticks:</label>
+                    <div class="slider-container">
+                        <input type="range" id="minUpticks" min="3" max="7" value="3" class="slider">
+                        <span id="minUpticksValue">3 ticks</span>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="stake">Stake ($):</label>
+                    <input type="number" id="stake" min="1" step="1" value="10" class="input-field">
+                </div>
+                
+                <div class="form-group">
+                    <label for="houseEdge">House Edge:</label>
+                    <input type="number" id="houseEdge" min="0.01" step="0.01" value="0.05" class="input-field">
+                </div>
+                
+                <button id="placeTradeBtn" class="btn primary-btn" disabled>Place Trade</button>
             </div>
 
-            <div class="calculation-results">
-                <div class="result-item">
-                    <span class="label">Contract price (fair):</span>
-                    <span id="fair-price">--</span>
+            <!-- Trade Calculations -->
+            <div class="trade-calculations">
+                <h2>Trade Details</h2>
+                
+                <div class="calculation-item">
+                    <span class="label">Fair Price:</span>
+                    <span id="fairPrice" class="value">-</span>
                 </div>
-                <div class="result-item">
-                    <span class="label">House edge:</span>
-                    <span id="applied-house-edge">--</span>
+                
+                <div class="calculation-item">
+                    <span class="label">House Edge:</span>
+                    <span id="appliedHouseEdge" class="value">-</span>
                 </div>
-                <div class="result-item">
-                    <span class="label">Total price per contract:</span>
-                    <span id="total-price">--</span>
+                
+                <div class="calculation-item">
+                    <span class="label">Total Price per Contract:</span>
+                    <span id="totalPrice" class="value">-</span>
                 </div>
-                <div class="result-item">
-                    <span class="label">Contracts purchased:</span>
-                    <span id="contracts">--</span>
+                
+                <div class="calculation-item">
+                    <span class="label">Contracts Purchased:</span>
+                    <span id="contracts" class="value">-</span>
                 </div>
-                <div class="result-item">
-                    <span class="label">Potential payout:</span>
-                    <span id="potential-payout">--</span>
+                
+                <div class="calculation-item highlight">
+                    <span class="label">Potential Payout:</span>
+                    <span id="potentialPayout" class="value">-</span>
+                </div>
+                
+                <div class="summary-box">
+                    <p id="tradeSummary">-</p>
                 </div>
             </div>
 
-            <div class="summary">
-                <p id="summary-statement">For a $10 stake, if there are at least 6 up-ticks in the next 8 ticks, you win $50.00.</p>
+            <!-- Active Contract Display -->
+            <div id="activeContract" class="active-contract hidden">
+                <h2>Active Contract</h2>
+                <div class="contract-progress">
+                    <div class="progress-item">
+                        <span class="label">Progress:</span>
+                        <span id="contractProgress" class="value">0/0</span>
+                    </div>
+                    <div class="progress-item">
+                        <span class="label">Up-ticks:</span>
+                        <span id="upTickCount" class="value">0</span>
+                    </div>
+                    <div class="progress-item">
+                        <span class="label">Target:</span>
+                        <span id="upTickTarget" class="value">0</span>
+                    </div>
+                </div>
+                <div class="progress-bar-container">
+                    <div id="progressBar" class="progress-bar"></div>
+                </div>
             </div>
-        </section>
+        </div>
 
-        <section class="explanation">
-            <h2>House Edge Application</h2>
-            <ul>
-                <li><strong>Contract Price (Fair Probability):</strong> \( P \)</li>
-                <li><strong>House Edge (as absolute flat value):</strong> \( H \)</li>
-                <li><strong>Client Stake:</strong> \( S \)</li>
-                <li><strong>Client chooses:</strong>
-                    <ul>
-                        <li>Number of ticks (\( n \)), e.g. 5–10</li>
-                        <li>Minimum up-ticks (\( k \)), e.g. 3–n</li>
-                    </ul>
-                </li>
-            </ul>
-
-            <p><strong>Calculation of Number of Contracts Purchased:</strong></p>
-            <div class="formula">
-                \[ \text{Contracts} = \frac{S}{P + H} \]
+        <!-- Contract Result Notification -->
+        <div id="resultNotification" class="notification hidden">
+            <div class="notification-content">
+                <h3 id="resultTitle">Contract Result</h3>
+                <p id="resultMessage"></p>
+                <button id="closeNotification" class="btn">Close</button>
             </div>
+        </div>
 
-            <p>Payoff: If the event happens (≥k up in n), the client's payout is number of contracts × $1 per contract (minus any fees).</p>
-        </section>
-
-        <section class="example">
-            <h2>Example Calculation</h2>
-            <p><strong>Suppose:</strong></p>
-            <ul>
-                <li>\( n = 8 \), \( k = 6 \)</li>
-                <li>Calculated fair price (binomial probability): \( P = 0.15 \)</li>
-                <li>House edge: add 0.05 (flat value)</li>
-                <li>Stake: $10</li>
-            </ul>
-
-            <p><strong>Contracts:</strong></p>
-            <div class="formula">
-                \[ \text{Contracts} = \frac{10}{0.15 + 0.05} = \frac{10}{0.20} = 50 \]
-            </div>
-
-            <p>If event occurs, client receives: \( 50 \times \$1 = \$50 \) (on a \$10 stake; effective payout 5:1).</p>
-        </section>
-
-
-        <section class="backend-formula">
-            <h2>Backend/Formula</h2>
-            <pre><code>
-def tick_majority_contracts(stake, n, k, house_edge, p=0.5):
-    from math import comb
-    # Calculate fair price (binomial probability)
-    fair_price = sum(comb(n, i) * (p**i) * ((1-p)**(n-i)) for i in range(k, n+1))
-    # Total price per contract (additive house edge)
-    total_price = fair_price + house_edge
-    # Number of contracts
-    contracts = stake / total_price
-    return contracts, fair_price, house_edge, total_price
-            </code></pre>
-        </section>
-
-        <section class="conclusion">
-            <h2>Conclusion</h2>
-            <ul>
-                <li><strong>Clear, transparent:</strong> Client sees how much each contract "costs" including edge.</li>
-                <li><strong>Payouts scale with contracts:</strong> Just like classic "unit" binary option models.</li>
-                <li><strong>House edge is simple to reason about</strong>, works for backend and live UI.</li>
-            </ul>
-        </section>
+        <footer>
+            <p>Tick-Majority Trading Simulator - Random Price Generator</p>
+        </footer>
     </div>
 
-    <!-- MathJax for rendering mathematical formulas -->
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    
-    <!-- Plotly.js for tick visualization -->
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    
-    <!-- Custom JavaScript -->
     <script src="app.js"></script>
 </body>
 </html>
