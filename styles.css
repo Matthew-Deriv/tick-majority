@@ -70,18 +70,19 @@ header p {
 @media (min-width: 992px) {
     .main-content {
         grid-template-columns: 2fr 1fr;
-        grid-template-rows: auto auto auto;
+        grid-template-rows: auto auto 1fr auto;
     }
     
     .chart-container {
         grid-column: 1;
-        grid-row: 1 / 3;
-        height: 350px;
+        grid-row: 1 / 4;
+        height: auto;
+        min-height: 600px;
     }
     
     .price-info {
         grid-column: 1 / 3;
-        grid-row: 3;
+        grid-row: 4;
     }
     
     .trading-panel {
@@ -96,7 +97,7 @@ header p {
     
     .active-contract {
         grid-column: 1 / 3;
-        grid-row: 4;
+        grid-row: 5;
     }
 }
 
