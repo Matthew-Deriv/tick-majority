@@ -25,21 +25,16 @@ venv/
 ENV/
 env/
 
-# Flask
-instance/
-.webassets-cache
-
-# IDE
+# IDE files
 .idea/
 .vscode/
 *.swp
 *.swo
-
-# OS specific
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+
+# Flask
+instance/
+.webassets-cache
+
+# Logs
+*.log

@@ -1,125 +1,108 @@
-# Deploying Tick-Majority Trading App on PythonAnywhere
+# Deploying to PythonAnywhere
 
-This guide will walk you through the steps to deploy the Tick-Majority Trading application on PythonAnywhere.
+This guide will help you deploy the Tick-Majority Trading application to PythonAnywhere.
 
 ## Prerequisites
 
 - A PythonAnywhere account (free tier is sufficient)
 - The files from this repository
 
-## Deployment Steps
-
-### 1. Create a PythonAnywhere Account
+## Step 1: Create a PythonAnywhere Account
 
 If you don't already have one, sign up for a free PythonAnywhere account at [https://www.pythonanywhere.com/](https://www.pythonanywhere.com/).
 
-### 2. Upload Files to PythonAnywhere
-
-There are several ways to upload your files:
-
-#### Option 1: Using the PythonAnywhere Files Interface
+## Step 2: Upload Your Files
 
 1. Log in to your PythonAnywhere account
-2. Navigate to the "Files" tab
-3. Create a new directory for your project (e.g., `tick-majority`)
+2. Go to the "Files" tab
+3. Create a new directory for your application (e.g., `tick-majority`)
 4. Upload all the files from this repository to that directory:
+   - `app.py`
    - `index.html`
    - `styles.css`
    - `app.js`
-   - `app.py`
    - `requirements.txt`
 
-#### Option 2: Using Git
+## Step 3: Set Up a Virtual Environment
 
-If your project is in a Git repository:
-
-1. Log in to your PythonAnywhere account
-2. Open a Bash console from the "Consoles" tab
-3. Clone your repository:
-   ```bash
-   git clone https://github.com/yourusername/tick-majority.git
-   ```
-
-### 3. Set Up a Virtual Environment
-
-1. Open a Bash console from the "Consoles" tab
-2. Navigate to your project directory:
+1. Go to the "Consoles" tab
+2. Start a new Bash console
+3. Navigate to your project directory:
    ```bash
    cd tick-majority
    ```
-3. Create a virtual environment:
+4. Create a virtual environment:
    ```bash
    python -m venv venv
    ```
-4. Activate the virtual environment:
+5. Activate the virtual environment:
    ```bash
    source venv/bin/activate
    ```
-5. Install the required packages:
+6. Install the required packages:
    ```bash
    pip install -r requirements.txt
    ```
 
-### 4. Configure a Web App
+## Step 4: Configure a Web App
 
-1. Go to the "Web" tab in PythonAnywhere
+1. Go to the "Web" tab
 2. Click "Add a new web app"
-3. Choose your domain name (it will be something like `yourusername.pythonanywhere.com`)
-4. Select "Manual configuration"
-5. Choose the Python version (3.8 or newer recommended)
-6. Set the path to your project directory (e.g., `/home/yourusername/tick-majority`)
-
-### 5. Configure WSGI File
-
-1. In the "Web" tab, look for the link to your WSGI configuration file and click it
-2. Replace the contents with the following (adjust paths as needed):
+3. Choose "Manual configuration"
+4. Select the Python version (3.8 or newer)
+5. Enter the path to your project directory (e.g., `/home/yourusername/tick-majority`)
+6. Configure the WSGI file:
+   - Click on the WSGI configuration file link
+   - Replace the contents with the following:
 
 ```python
 import sys
+import os
+
+# Add your project directory to the Python path
 path = '/home/yourusername/tick-majority'
 if path not in sys.path:
     sys.path.append(path)
 
+# Set the path to your virtual environment
+os.environ['VIRTUAL_ENV'] = '/home/yourusername/tick-majority/venv'
+os.environ['PATH'] = '/home/yourusername/tick-majority/venv/bin:' + os.environ['PATH']
+
+# Import your Flask app
 from app import app as application
 ```
 
-3. Save the file
+7. Replace `yourusername` with your actual PythonAnywhere username
+8. Save the file
 
-### 6. Set Up Static Files
+## Step 5: Configure Static Files
 
-1. In the "Web" tab, scroll down to "Static files"
-2. Add the following mappings:
-   - URL: `/static/` -> Directory: `/home/yourusername/tick-majority/static`
-   - URL: `/` -> Directory: `/home/yourusername/tick-majority`
+1. In the "Web" tab, scroll down to the "Static Files" section
+2. Add the following static file mappings:
+   - URL: `/styles.css`, Directory: `/home/yourusername/tick-majority/styles.css`
+   - URL: `/app.js`, Directory: `/home/yourusername/tick-majority/app.js`
+3. Replace `yourusername` with your actual PythonAnywhere username
 
-### 7. Reload Your Web App
+## Step 6: Reload Your Web App
 
-1. In the "Web" tab, click the "Reload" button for your web app
-2. Wait a few seconds for the changes to take effect
+1. Go back to the top of the "Web" tab
+2. Click the "Reload" button for your web app
 
-### 8. Visit Your Web App
+## Step 7: Access Your Application
 
-Your Tick-Majority Trading application should now be accessible at `https://yourusername.pythonanywhere.com/`.
+Your application should now be available at:
+```
+https://yourusername.pythonanywhere.com
+```
+
+Replace `yourusername` with your actual PythonAnywhere username.
 
 ## Troubleshooting
 
 If you encounter any issues:
 
 1. Check the error logs in the "Web" tab
-2. Make sure all files are uploaded correctly
-3. Verify that your virtual environment has all the required packages installed
-4. Ensure the WSGI file is configured correctly
-
-## Notes on WebSocket Support
-
-PythonAnywhere's free tier has limitations on WebSocket connections. The application uses WebSockets to connect to the Deriv API for real-time tick data. If you experience issues with the WebSocket connection:
-
-1. Try using a paid PythonAnywhere account which has better WebSocket support
-2. Consider deploying to another platform that fully supports WebSockets (e.g., Heroku, AWS, etc.)
-
-## Updating Your Application
-
-To update your application after making changes:
-
-1. Upload the new files to PythonAnywhere
-2. Reload your web app from the "Web" tab
+2. Make sure all files have been uploaded correctly
+3. Verify that the paths in the WSGI configuration file are correct
+4. Ensure that the static file mappings are set up properly
+5. Check that the virtual environment has been created and activated correctly

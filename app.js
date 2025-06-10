@@ -189,8 +189,8 @@ function addTick(tick) {
     // Update the chart
     updateChart();
     
-    // Enable place trade button if we have enough ticks
-    if (tickHistory.length >= 5 && !contractActive) {
+    // Enable place trade button immediately if not in an active contract
+    if (!contractActive) {
         placeTradeButton.disabled = false;
     }
 }

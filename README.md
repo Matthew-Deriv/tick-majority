@@ -6,15 +6,15 @@
 - **House Edge (as absolute flat value):** \( H \)
 - **Client Stake:** \( S \)
 - **Client chooses:**
-  - Number of ticks (\( n \)), e.g. 5–10
-  - Minimum up-ticks (\( k \)), e.g. 3–n
+  - Number of ticks (\( n \)), e.g. 5–15
+  - Minimum up-ticks (\( k \)), e.g. 1–n
 
 **Calculation of Number of Contracts Purchased:**
 \[
 \text{Contracts} = \frac{S}{P + H}
 \]
 
-Payoff: If the event happens (≥k up in n), the client’s payout is number of contracts × \$1 per contract (minus any fees).
+Payoff: If the event happens (≥k up in n), the client's payout is number of contracts × \$1 per contract (minus any fees).
 
 ---
 
@@ -39,8 +39,8 @@ If event occurs, client receives: \( 50 \times \$1 = \$50 \) (on a \$10 stake; e
 
 **Tick-Majority**
 
-- **Duration:** [Slider: 5–10 ticks]
-- **Minimum up-ticks:** [Slider: 3–chosen duration]
+- **Duration:** [Slider: 5–15 ticks]
+- **Minimum up-ticks:** [Slider: 1–chosen duration]
 - **Stake:** [Input \$]
 - **House Edge:** [Input flat value]
 
@@ -55,6 +55,15 @@ Below, show:
 
 **Summary Statement** (dynamic):  
 *"For a \$10 stake, if there are at least 6 up-ticks in the next 8 ticks, you win \$50.00."*
+
+---
+
+### **Implementation Notes**
+
+- **Up-tick Definition:** An up-tick is counted when a tick's price is higher than the *previous* tick's price (not compared to the contract start price).
+- **Random Price Generator:** The application uses a random price generator starting at 10,000 with ±0.1 fluctuations.
+- **Visual Indicators:** The chart shows clear visual indicators for up and down ticks during an active contract.
+- **Real-time Updates:** Contract progress, up-tick count, and potential payout are updated in real-time.
 
 ---
 
@@ -74,8 +83,17 @@ def tick_majority_contracts(stake, n, k, house_edge, p=0.5):
 
 ---
 
+### **Running the Application**
+
+1. Make sure Flask is installed: `pip install flask`
+2. Run the application: `python app.py --port 5001` (or any available port)
+3. Open a browser and navigate to `http://127.0.0.1:5001`
+
+---
+
 ### **Conclusion**
 
 - **Clear, transparent:** Client sees how much each contract "costs" including edge.
 - **Payouts scale with contracts:** Just like classic "unit" binary option models.
 - **House edge is simple to reason about**, works for backend and live UI.
+- **Immediate trading:** Users can place trades immediately without waiting.
