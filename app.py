@@ -1,7 +1,7 @@
 from flask import Flask, send_from_directory, jsonify
 import os
 import argparse
-from tick_fetcher import get_tick_fetcher
+from tick_fetcher import get_latest_tick
 
 app = Flask(__name__)
 
@@ -10,11 +10,10 @@ def index():
     return send_from_directory('.', 'index.html')
 
 @app.route('/api/tick/<symbol>')
-def get_latest_tick(symbol):
+def get_latest_tick_api(symbol):
     """Get latest tick for a symbol"""
     try:
-        fetcher = get_tick_fetcher()
-        tick_data = fetcher.get_latest_tick(symbol)
+        tick_data = get_latest_tick(symbol)
         
         if tick_data:
             return jsonify({

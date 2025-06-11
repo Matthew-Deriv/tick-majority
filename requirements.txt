@@ -1,2 +1,2 @@
 flask==2.0.1
-websocket-client==1.6.4
+websockets==12.0
