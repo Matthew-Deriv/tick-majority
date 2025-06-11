@@ -12,6 +12,12 @@ let contractDuration = 0;
 let contractMinTicks = 0;
 let isUpDirection = true; // Default to up direction
 
+// WebSocket variables
+let ws = null;
+let currentSymbol = '1HZ100V';
+let subscriptionId = null;
+let lastTickTime = null; // Store the last tick timestamp to detect new ticks
+
 // DOM Elements
 const currentPriceElement = document.getElementById('currentPrice');
 const priceDirectionElement = document.getElementById('priceDirection');
@@ -41,6 +47,7 @@ const resultNotificationElement = document.getElementById('resultNotification');
 const resultTitleElement = document.getElementById('resultTitle');
 const resultMessageElement = document.getElementById('resultMessage');
 const closeNotificationButton = document.getElementById('closeNotification');
+const symbolSelect = document.getElementById('symbol');
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
@@ -78,7 +85,7 @@ function initChart() {
     }];
     
     const layout = {
-        title: 'Price Chart',
+        title: `Price Chart - ${currentSymbol}`,
         xaxis: {
             title: 'Tick',
             showgrid: true,
@@ -87,7 +94,8 @@ function initChart() {
         yaxis: {
             title: 'Price',
             showgrid: true,
-            zeroline: false
+            zeroline: false,
+            tickformat: ',.2f'
         },
         margin: { t: 50, l: 50, r: 30, b: 50 },
         hovermode: 'closest',
@@ -165,38 +173,201 @@ function setupEventListeners() {
     closeNotificationButton.addEventListener('click', () => {
         resultNotificationElement.classList.add('hidden');
     });
+    
+    // Symbol selection
+    symbolSelect.addEventListener('change', () => {
+        const newSymbol = symbolSelect.value;
+        console.log(`Symbol changed from ${currentSymbol} to: ${newSymbol}`);
+        
+        // Unsubscribe from current symbol
+        unsubscribeFromSymbol();
+        
+        // Update current symbol
+        currentSymbol = newSymbol;
+        
+        // Reset chart and start fresh with new symbol
+        resetChart();
+        
+        // Reset last tick time for new symbol
+        lastTickTime = null;
+        
+        // Start getting ticks for new symbol
+        setTimeout(() => {
+            getLatestTick(currentSymbol);
+        }, 100);
+    });
 }
 
 // Start the tick generator
 function startTickGenerator() {
-    // Generate initial tick
-    generateTick();
-    
-    // Generate a new tick every second
-    tickInterval = setInterval(generateTick, 1000);
+    // Start fetching ticks from Flask API every 300ms
+    tickInterval = setInterval(fetchTick, 300);
 }
 
-// Generate a random tick
-function generateTick() {
-    // Generate a random direction (50% chance up or down)
-    const isUp = Math.random() >= 0.5;
+// Connect to Deriv WebSocket
+function connectWebSocket() {
+    console.log('🔌 Attempting to connect to WebSocket...');
+    ws = new WebSocket('wss://blue.derivws.com/websockets/v3?app_id=16929');
     
-    // Calculate new price (add or subtract 0.1)
-    const newPrice = isUp ? lastPrice + 0.1 : lastPrice - 0.1;
-    
-    // Create a tick object
-    const tick = {
-        price: newPrice,
-        time: new Date().toLocaleTimeString(),
-        epoch: Math.floor(Date.now() / 1000)
+    ws.onopen = function() {
+        console.log('✅ WebSocket connected successfully');
+        console.log('📡 WebSocket readyState:', ws.readyState);
+        // Wait longer for the connection to be fully established
+        setTimeout(() => {
+            console.log('📡 WebSocket readyState after delay:', ws.readyState);
+            if (ws.readyState === WebSocket.OPEN) {
+                getLatestTick(currentSymbol);
+            } else {
+                console.log('⏳ WebSocket still not ready, waiting longer...');
+                setTimeout(() => {
+                    console.log('📡 WebSocket readyState after longer delay:', ws.readyState);
+                    getLatestTick(currentSymbol);
+                }, 1000);
+            }
+        }, 500);
     };
     
-    // Add the tick to history
-    addTick(tick);
+    ws.onmessage = function(event) {
+        console.log('📨 WebSocket message received:', event.data);
+        try {
+            const data = JSON.parse(event.data);
+            console.log('📊 Parsed data:', data);
+            handleWebSocketMessage(data);
+        } catch (error) {
+            console.error('❌ Error parsing WebSocket message:', error);
+            console.error('Raw message:', event.data);
+        }
+    };
     
-    // If a contract is active, update it
-    if (contractActive) {
-        updateContract(tick);
+    ws.onclose = function(event) {
+        console.log('🔌 WebSocket disconnected');
+        console.log('Close code:', event.code, 'Reason:', event.reason);
+        // Attempt to reconnect after 2 seconds
+        setTimeout(() => {
+            console.log('🔄 Attempting to reconnect...');
+            connectWebSocket();
+        }, 2000);
+    };
+    
+    ws.onerror = function(error) {
+        console.error('❌ WebSocket error:', error);
+        console.error('WebSocket state:', ws.readyState);
+    };
+}
+
+// Get latest tick for a symbol using ticks_history
+function getLatestTick(symbol) {
+    console.log(`🔔 Requesting latest tick for symbol: ${symbol}`);
+    console.log(`📡 WebSocket state: ${ws ? ws.readyState : 'null'}`);
+    
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        const message = {
+            ticks_history: symbol,
+            count: 1,
+            end: "latest"
+        };
+        console.log(`📤 Sending ticks_history request:`, message);
+        ws.send(JSON.stringify(message));
+        console.log(`✅ Ticks_history request sent for ${symbol}`);
+    } else {
+        console.error(`❌ Cannot request tick - WebSocket not ready. State: ${ws ? ws.readyState : 'null'}`);
+        console.log('WebSocket states: 0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED');
+    }
+}
+
+// Unsubscribe from current symbol
+function unsubscribeFromSymbol() {
+    if (ws && ws.readyState === WebSocket.OPEN && subscriptionId) {
+        const message = {
+            forget: subscriptionId
+        };
+        ws.send(JSON.stringify(message));
+        console.log(`Unsubscribed from subscription ${subscriptionId}`);
+        subscriptionId = null;
+    }
+}
+
+// Handle WebSocket messages
+function handleWebSocketMessage(data) {
+    console.log(`🔍 Processing message type: ${data.msg_type}`);
+    
+    if (data.msg_type === 'history' && data.history) {
+        console.log(`✅ History message received!`);
+        console.log(`💰 Price: ${data.history.prices[0]}`);
+        console.log(`⏰ Time: ${data.history.times[0]}`);
+        
+        const currentTickTime = data.history.times[0];
+        const currentPrice = data.history.prices[0];
+        
+        // Check if this is a new tick (different timestamp)
+        if (lastTickTime === null || currentTickTime !== lastTickTime) {
+            console.log(`🆕 New tick detected! Previous time: ${lastTickTime}, Current time: ${currentTickTime}`);
+            
+            // Update the last tick time
+            lastTickTime = currentTickTime;
+            
+            // Create a tick object using the price from history
+            const tick = {
+                price: currentPrice,
+                time: new Date(currentTickTime * 1000).toLocaleTimeString(),
+                epoch: currentTickTime
+            };
+            
+            console.log(`📊 Created tick object:`, tick);
+            
+            // Add the tick to history
+            addTick(tick);
+            
+            // If a contract is active, update it
+            if (contractActive) {
+                updateContract(tick);
+            }
+        } else {
+            console.log(`⏸️ Same tick time ${currentTickTime}, waiting for new tick...`);
+        }
+    } else {
+        console.log(`ℹ️ Non-history message received:`, data);
+        
+        // Check for other message types
+        if (data.msg_type === 'authorize') {
+            console.log(`🔐 Authorization message:`, data);
+        } else if (data.echo_req) {
+            console.log(`📡 Echo request:`, data.echo_req);
+        }
+    }
+}
+
+// Fetch tick (this will be called by the interval to poll for new ticks)
+async function fetchTick() {
+    try {
+        console.log(`🔔 Requesting latest tick for symbol: ${currentSymbol}`);
+        const response = await fetch(`/api/tick/${currentSymbol}`);
+        const data = await response.json();
+        
+        if (data.has_new_tick) {
+            console.log(`✅ New tick received: ${data.price} at ${data.time}`);
+            
+            // Create a tick object
+            const tick = {
+                price: data.price,
+                time: new Date(data.time * 1000).toLocaleTimeString(),
+                epoch: data.time
+            };
+            
+            console.log(`📊 Created tick object:`, tick);
+            
+            // Add the tick to history
+            addTick(tick);
+            
+            // If a contract is active, update it
+            if (contractActive) {
+                updateContract(tick);
+            }
+        } else {
+            console.log(`⏸️ No new tick available`);
+        }
+    } catch (error) {
+        console.error('❌ Error fetching tick:', error);
     }
 }
 
@@ -842,6 +1013,32 @@ function cleanupOldContractVisualizations() {
             Plotly.deleteTraces(chart, tracesToDelete);
         }
     }
+}
+
+// Reset chart for symbol change
+function resetChart() {
+    // Reset tick history and counters
+    tickHistory = [];
+    totalTickCount = 0;
+    
+    // Reset contract state if active
+    if (contractActive) {
+        contractActive = false;
+        activeContractElement.classList.add('hidden');
+        placeTradeButton.disabled = true;
+    }
+    
+    // Reset UI elements
+    currentPriceElement.textContent = '-';
+    priceDirectionElement.textContent = '→';
+    priceDirectionElement.className = 'neutral';
+    tickHistoryElement.textContent = '-';
+    
+    // Clear and reinitialize the chart
+    Plotly.purge(chart);
+    initChart();
+    
+    console.log(`Chart reset for symbol: ${currentSymbol}`);
 }
 
 // Reset the entire application to initial state
