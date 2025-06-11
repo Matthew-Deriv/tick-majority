@@ -51,7 +51,7 @@ If event occurs, client receives: \( 50 \times \$1 = \$50 \) (on a \$10 stake; e
 
 ---
 
-### **Proof-of-Concept UI (Updated)**
+### **Proof-of-Concept UI**
 
 **Tick-Majority**
 
@@ -77,8 +77,6 @@ Below, show:
 ### **Implementation Notes**
 
 - **Up-tick Definition:** An up-tick is counted when a tick's price is higher than the *previous* tick's price (not compared to the contract start price).
-- **Random Price Generator:** The application uses a random price generator starting at 10,000 with ±0.1 fluctuations.
-- **Visual Indicators:** The chart shows clear visual indicators for up and down ticks during an active contract.
 - **Real-time Updates:** Contract progress, up-tick count, and potential payout are updated in real-time.
 
 ---
@@ -96,20 +94,3 @@ def tick_majority_contracts(stake, n, k, commission, p=0.5):
     contracts = stake / total_price
     return contracts, fair_price, commission, total_price
 ```
-
----
-
-### **Running the Application**
-
-1. Make sure Flask is installed: `pip install flask`
-2. Run the application: `python app.py --port 5001` (or any available port)
-3. Open a browser and navigate to `http://127.0.0.1:5001`
-
----
-
-### **Conclusion**
-
-- **Clear, transparent:** Client sees how much each contract "costs" including commission.
-- **Payouts scale with contracts:** Just like classic "unit" binary option models.
-- **Commission is simple to reason about**, works for backend and live UI.
-- **Immediate trading:** Users can place trades immediately without waiting.
