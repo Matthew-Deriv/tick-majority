@@ -1,4 +1,20 @@
-## Tick-Majority – Updated House Edge Mechanism
+## Tick-Majority - Product Idea
+
+### **Product Description**
+*A New Way to Trade Market Direction*
+
+**What is it?**
+Predict whether the majority of upcoming price ticks will move in your chosen direction. Unlike traditional binary options that depend on final price levels, Tick-Majority rewards you for correctly forecasting market momentum.
+
+**How it works:**
+- Choose your contract duration (5-15 ticks)
+- Set your minimum target (e.g., "at least 6 up-ticks out of 8")
+- Place your stake
+- Win if the market moves your way for the majority of ticks
+- Want to capitalize on short-term market momentum
+
+
+---
 
 ### **House Edge Application**
 
