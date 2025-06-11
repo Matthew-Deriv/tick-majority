@@ -14,7 +14,7 @@ let isUpDirection = true; // Default to up direction
 
 // WebSocket variables
 let ws = null;
-let currentSymbol = '1HZ100V';
+const currentSymbol = '1HZ100V'; // Fixed symbol - no longer changeable
 let subscriptionId = null;
 let lastTickTime = null; // Store the last tick timestamp to detect new ticks
 
@@ -47,7 +47,6 @@ const resultNotificationElement = document.getElementById('resultNotification');
 const resultTitleElement = document.getElementById('resultTitle');
 const resultMessageElement = document.getElementById('resultMessage');
 const closeNotificationButton = document.getElementById('closeNotification');
-const symbolSelect = document.getElementById('symbol');
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
@@ -174,30 +173,7 @@ function setupEventListeners() {
         resultNotificationElement.classList.add('hidden');
     });
     
-    // Symbol selection
-    symbolSelect.addEventListener('change', () => {
-        const newSymbol = symbolSelect.value;
-        console.log(`Symbol changed from ${currentSymbol} to: ${newSymbol}`);
-        
-        // Stop the current tick interval
-        if (tickInterval) {
-            clearInterval(tickInterval);
-            console.log('Stopped previous tick interval');
-        }
-        
-        // Update current symbol
-        currentSymbol = newSymbol;
-        
-        // Reset chart and start fresh with new symbol
-        resetChart();
-        
-        // Reset last tick time for new symbol
-        lastTickTime = null;
-        
-        // Start new tick interval for the new symbol
-        console.log(`Starting new tick interval for ${currentSymbol}`);
-        tickInterval = setInterval(fetchTick, 300);
-    });
+    // Symbol is now fixed to 1HZ100V - no selector needed
 }
 
 // Start the tick generator

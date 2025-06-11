@@ -10,8 +10,10 @@ logger = logging.getLogger(__name__)
 # WebSocket API URL
 WS_URL = "wss://ws.derivws.com/websockets/v3?app_id=16929"
 
-# Simple per-symbol timestamp tracking
-last_tick_times = {}
+# Simple timestamp tracking for 1HZ100V only
+last_tick_time = None
+last_request_time = 0
+FIXED_SYMBOL = '1HZ100V'
 
 async def fetch_latest_tick(symbol):
     """
@@ -24,7 +26,24 @@ async def fetch_latest_tick(symbol):
     Returns:
         dict: The tick data if new, None if same timestamp
     """
-    global last_tick_times
+    global last_tick_times, current_symbol, last_request_time
+    import time
+    
+    # Check if symbol changed during this request
+    symbol_changed = set_current_symbol(symbol)
+    
+    # If symbol changed, ignore any pending requests for old symbols
+    if current_symbol != symbol:
+        logger.debug(f"⏭️ Ignoring request for {symbol} - current symbol is {current_symbol}")
+        return None
+    
+    # Throttle requests - only allow one request per 100ms
+    current_time = time.time()
+    if current_time - last_request_time < 0.1:
+        logger.debug(f"⏸️ Throttling request for {symbol}")
+        return None
+    
+    last_request_time = current_time
     
     # Request payload for fetching latest tick
     request_message = {
@@ -40,27 +59,32 @@ async def fetch_latest_tick(symbol):
             response = await websocket.recv()
             data = json.loads(response)
             
+            # Double-check symbol hasn't changed during the request
+            if current_symbol != symbol:
+                logger.debug(f"⏭️ Symbol changed during request, ignoring response for {symbol}")
+                return None
+            
             if data.get('msg_type') == 'history' and data.get('history'):
-                current_time = data['history']['times'][0]
-                current_price = data['history']['prices'][0]
+                tick_time = data['history']['times'][0]
+                tick_price = data['history']['prices'][0]
                 
                 # Check if this is a new tick (different timestamp)
                 last_time = last_tick_times.get(symbol)
                 
-                if last_time is None or current_time != last_time:
+                if last_time is None or tick_time != last_time:
                     # Update last tick time for this symbol
-                    last_tick_times[symbol] = current_time
+                    last_tick_times[symbol] = tick_time
                     
                     tick_data = {
-                        'price': current_price,
-                        'time': current_time,
+                        'price': tick_price,
+                        'time': tick_time,
                         'symbol': symbol
                     }
                     
-                    logger.info(f"🎯 New tick for {symbol}: {current_price} at {current_time}")
+                    logger.info(f"🎯 New tick for {symbol}: {tick_price} at {tick_time}")
                     return tick_data
                 else:
-                    logger.debug(f"⏸️ Same timestamp {current_time} for {symbol}, no new tick")
+                    logger.debug(f"⏸️ Same timestamp {tick_time} for {symbol}, no new tick")
                     return None
             else:
                 logger.error(f"❌ Invalid response for {symbol}: {data}")
