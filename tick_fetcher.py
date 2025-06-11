@@ -10,12 +10,13 @@ logger = logging.getLogger(__name__)
 # WebSocket API URL
 WS_URL = "wss://ws.derivws.com/websockets/v3?app_id=16929"
 
-# Global variable to store last tick time per symbol
+# Simple per-symbol timestamp tracking
 last_tick_times = {}
 
 async def fetch_latest_tick(symbol):
     """
     Fetch latest tick for a specific symbol from Deriv WebSocket API
+    Each call creates a fresh WebSocket connection (like sample.py)
     
     Args:
         symbol (str): The trading symbol to fetch data for (e.g., '1HZ100V', 'R_50')
@@ -33,6 +34,7 @@ async def fetch_latest_tick(symbol):
     }
     
     try:
+        # Create fresh WebSocket connection for each request (like sample.py)
         async with websockets.connect(WS_URL) as websocket:
             await websocket.send(json.dumps(request_message))
             response = await websocket.recv()
