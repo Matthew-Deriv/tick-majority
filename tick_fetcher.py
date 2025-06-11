@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # WebSocket API URL
-WS_URL = "wss://blue.derivws.com/websockets/v3?app_id=16929"
+WS_URL = "wss://ws.derivws.com/websockets/v3?app_id=16929"
 
 # Global variable to store last tick time per symbol
 last_tick_times = {}
