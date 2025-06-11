@@ -179,8 +179,11 @@ function setupEventListeners() {
         const newSymbol = symbolSelect.value;
         console.log(`Symbol changed from ${currentSymbol} to: ${newSymbol}`);
         
-        // Unsubscribe from current symbol
-        unsubscribeFromSymbol();
+        // Stop the current tick interval
+        if (tickInterval) {
+            clearInterval(tickInterval);
+            console.log('Stopped previous tick interval');
+        }
         
         // Update current symbol
         currentSymbol = newSymbol;
@@ -191,10 +194,9 @@ function setupEventListeners() {
         // Reset last tick time for new symbol
         lastTickTime = null;
         
-        // Start getting ticks for new symbol
-        setTimeout(() => {
-            getLatestTick(currentSymbol);
-        }, 100);
+        // Start new tick interval for the new symbol
+        console.log(`Starting new tick interval for ${currentSymbol}`);
+        tickInterval = setInterval(fetchTick, 300);
     });
 }
 
