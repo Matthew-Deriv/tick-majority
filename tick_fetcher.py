@@ -17,24 +17,21 @@ FIXED_SYMBOL = '1HZ100V'
 
 async def fetch_latest_tick(symbol):
     """
-    Fetch latest tick for a specific symbol from Deriv WebSocket API
+    Fetch latest tick for 1HZ100V from Deriv WebSocket API
     Each call creates a fresh WebSocket connection (like sample.py)
     
     Args:
-        symbol (str): The trading symbol to fetch data for (e.g., '1HZ100V', 'R_50')
+        symbol (str): The trading symbol to fetch data for (should be '1HZ100V')
     
     Returns:
         dict: The tick data if new, None if same timestamp
     """
-    global last_tick_times, current_symbol, last_request_time
+    global last_tick_time, last_request_time
     import time
     
-    # Check if symbol changed during this request
-    symbol_changed = set_current_symbol(symbol)
-    
-    # If symbol changed, ignore any pending requests for old symbols
-    if current_symbol != symbol:
-        logger.debug(f"⏭️ Ignoring request for {symbol} - current symbol is {current_symbol}")
+    # Only process requests for our fixed symbol
+    if symbol != FIXED_SYMBOL:
+        logger.warning(f"⚠️ Ignoring request for {symbol} - only {FIXED_SYMBOL} is supported")
         return None
     
     # Throttle requests - only allow one request per 100ms
@@ -59,21 +56,14 @@ async def fetch_latest_tick(symbol):
             response = await websocket.recv()
             data = json.loads(response)
             
-            # Double-check symbol hasn't changed during the request
-            if current_symbol != symbol:
-                logger.debug(f"⏭️ Symbol changed during request, ignoring response for {symbol}")
-                return None
-            
             if data.get('msg_type') == 'history' and data.get('history'):
                 tick_time = data['history']['times'][0]
                 tick_price = data['history']['prices'][0]
                 
                 # Check if this is a new tick (different timestamp)
-                last_time = last_tick_times.get(symbol)
-                
-                if last_time is None or tick_time != last_time:
-                    # Update last tick time for this symbol
-                    last_tick_times[symbol] = tick_time
+                if last_tick_time is None or tick_time != last_tick_time:
+                    # Update last tick time
+                    last_tick_time = tick_time
                     
                     tick_data = {
                         'price': tick_price,
