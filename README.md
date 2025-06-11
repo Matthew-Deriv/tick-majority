@@ -8,18 +8,18 @@ Predict whether the majority of upcoming price ticks will move in your chosen di
 
 **How it works:**
 - Choose your contract duration (5-15 ticks)
-- Set your minimum target (e.g., "at least 6 up-ticks out of 8")
+- Set your minimum target (e.g., "at least 6 up-ticks out of 8 move up")
 - Place your stake
 - Win if the market moves your way for the majority of ticks
-- Want to capitalize on short-term market momentum
+- Perfect for traders to capitalize on short-term market momentum
 
 
 ---
 
-### **House Edge Application**
+### **Commission Application**
 
 - **Contract Price (Fair Probability):** \( P \)
-- **House Edge (as absolute flat value):** \( H \)
+- **Commission (as absolute flat value):** \( H \)
 - **Client Stake:** \( S \)
 - **Client chooses:**
   - Number of ticks (\( n \)), e.g. 5–15
@@ -39,7 +39,7 @@ Payoff: If the event happens (≥k up in n), the client's payout is number of co
 **Suppose:**
 - \( n = 8 \), \( k = 6 \)
 - Calculated fair price (binomial probability): \( P = 0.15 \)
-- House edge: add 0.05 (flat value)
+- Commission: add 0.05 (flat value)
 - Stake: \$10
 
 **Contracts:**
@@ -58,13 +58,13 @@ If event occurs, client receives: \( 50 \times \$1 = \$50 \) (on a \$10 stake; e
 - **Duration:** [Slider: 5–15 ticks]
 - **Minimum up-ticks:** [Slider: 1–chosen duration]
 - **Stake:** [Input \$]
-- **House Edge:** [Input flat value]
+- **Commission:** [Input flat value]
 
 Button: **[Place Trade]**
 
 Below, show:
 - **Contract price (fair):** 0.15
-- **House edge:** 0.05
+- **Commission:** 0.05
 - **Total price per contract:** 0.20
 - **Contracts purchased:** 50.0 contracts
 - **Potential payout:** \$50.00
@@ -86,15 +86,15 @@ Below, show:
 ### **Backend/Formula**
 
 ```python
-def tick_majority_contracts(stake, n, k, house_edge, p=0.5):
+def tick_majority_contracts(stake, n, k, commission, p=0.5):
     from math import comb
     # Calculate fair price (binomial probability)
     fair_price = sum(comb(n, i) * (p**i) * ((1-p)**(n-i)) for i in range(k, n+1))
-    # Total price per contract (additive house edge)
-    total_price = fair_price + house_edge
+    # Total price per contract (additive commission)
+    total_price = fair_price + commission
     # Number of contracts
     contracts = stake / total_price
-    return contracts, fair_price, house_edge, total_price
+    return contracts, fair_price, commission, total_price
 ```
 
 ---
@@ -109,7 +109,7 @@ def tick_majority_contracts(stake, n, k, house_edge, p=0.5):
 
 ### **Conclusion**
 
-- **Clear, transparent:** Client sees how much each contract "costs" including edge.
+- **Clear, transparent:** Client sees how much each contract "costs" including commission.
 - **Payouts scale with contracts:** Just like classic "unit" binary option models.
-- **House edge is simple to reason about**, works for backend and live UI.
+- **Commission is simple to reason about**, works for backend and live UI.
 - **Immediate trading:** Users can place trades immediately without waiting.
